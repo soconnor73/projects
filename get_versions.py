@@ -12,6 +12,8 @@ ctx = ssl.create_default_context()
 ctx.check_hostname = False
 ctx.verify_mode = ssl.CERT_NONE
 
+__version__ = "1.2.0"
+
 API_HOST = "https://docs-cybersec-be.thalesgroup.com"
 PORTAL_HOST = "https://docs-cybersec.thalesgroup.com"
 
@@ -108,6 +110,99 @@ def fetch_product_details(bundle_name: str) -> dict[str, str]:
             "version": f"Error: {e}",
             "homepage": f"{PORTAL_HOST}/bundle/{bundle_name}"
         }
+
+def fetch_cte_components() -> list[dict[str, str]]:
+    """
+    Fetches and parses the CipherTrust Transparent Encryption (CTE) component
+    and agent versions from their respective OS and platform release notes pages.
+    """
+    cte_specs = [
+        {
+            "title": "CTE for Windows",
+            "bundle": "latest-cdsp-cte",
+            "page": "release-notes/windows-rn/index.html",
+        },
+        {
+            "title": "CTE for Linux",
+            "bundle": "latest-cdsp-cte",
+            "page": "release-notes/linux-rn/index.html",
+        },
+        {
+            "title": "CTE for AIX",
+            "bundle": "latest-cdsp-cte",
+            "page": "release-notes/aix-rn/index.html",
+        },
+        {
+            "title": "CTE UserSpace",
+            "bundle": "latest-cdsp-cteu",
+            "page": "release-notes/index.html",
+        },
+        {
+            "title": "CTE for Kubernetes",
+            "bundle": "latest-cdsp-cte-k8s",
+            "page": "release-notes/index.html",
+        }
+    ]
+
+    components = []
+
+    def extract_version_and_date(html: str) -> tuple[str, str]:
+        # Strategy 1: Look for <h[1-6]> tags containing version numbers (e.g., 7.9.0.127, 10.6.0.53)
+        heading_pattern = re.compile(r'<h([1-6])[^>]*>\s*(?:v\.?|CTE\s+)?(\d+(?:\.\d+){2,3})\s*</h\1>', re.IGNORECASE)
+        match = heading_pattern.search(html)
+        if match:
+            version = match.group(2).strip()
+            after_text = html[match.end():match.end() + 600]
+            date_match = re.search(r'Release Date:\s*([A-Za-z0-9,\s-]+?)(?:<|\n|$)', after_text, re.IGNORECASE)
+            date = date_match.group(1).strip() if date_match else ""
+            return version, date
+
+        # Strategy 2: Look for table rows with Product/Version (e.g., CTE for Kubernetes table)
+        table_row_pattern = re.compile(r'<tr[^>]*>\s*<td[^>]*>(.*?)</td>\s*<td[^>]*>(.*?)</td>', re.DOTALL | re.IGNORECASE)
+        for row_m in table_row_pattern.finditer(html):
+            col2 = re.sub(r'<[^>]+>', '', row_m.group(2)).strip()
+            if re.match(r'^\d+(?:\.\d+){2,3}$', col2):
+                version = col2
+                before_text = html[:row_m.start()]
+                date_match = re.findall(r'Release Date:\s*([A-Za-z0-9,\s-]+?)(?:<|\n|$)', before_text, re.IGNORECASE)
+                date = date_match[-1].strip() if date_match else ""
+                return version, date
+
+        # Strategy 3: Fallback regex search
+        date_match = re.search(r'Release Date:\s*([A-Za-z0-9,\s-]+?)(?:<|\n|$)', html, re.IGNORECASE)
+        date = date_match.group(1).strip() if date_match else ""
+        ver_match = re.search(r'\b(\d+(?:\.\d+){2,3})\b', html)
+        version = ver_match.group(1).strip() if ver_match else "Unknown"
+        return version, date
+
+    for spec in cte_specs:
+        b = spec["bundle"]
+        p = spec["page"]
+        title = spec["title"]
+        url = f"{API_HOST}/api/bundle/{b}/page/{p}"
+        homepage = f"{PORTAL_HOST}/bundle/{b}/page/{p}"
+        try:
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, context=ctx, timeout=15) as resp:
+                data = json.loads(resp.read().decode('utf-8', errors='ignore'))
+                html = data.get("topic_html", "")
+                version, date = extract_version_and_date(html)
+                components.append({
+                    "title": title,
+                    "version": version,
+                    "date": date,
+                    "homepage": homepage
+                })
+        except Exception as e:
+            print(f"Error fetching {title}: {e}", file=sys.stderr)
+            components.append({
+                "title": title,
+                "version": f"Error: {e}",
+                "date": "",
+                "homepage": homepage
+            })
+
+    return components
 
 def fetch_luna_hsm_components() -> list[dict[str, str]]:
     """
@@ -266,7 +361,9 @@ def print_table(
         print(row_fmt.format(*row_vals))
 
 def main():
-    parser = argparse.ArgumentParser(description="Get current product version numbers for Thales CipherTrust, Luna HSM, and DSF products.")
+    parser = argparse.ArgumentParser(description="Get current product version numbers for Thales CipherTrust (CDSP), CipherTrust Transparent Encryption (CTE), Luna HSM, and DSF products.")
+    parser.add_argument("-v", "--version", action="version", version=f"%(prog)s {__version__}",
+                        help="Show program's version number and exit")
     parser.add_argument("-f", "--format", choices=["table", "markdown"], default="table",
                         help="CLI output format (default: table)")
     parser.add_argument("--show-urls", action="store_true",
@@ -288,19 +385,25 @@ def main():
     else:
         print("Warning: No CipherTrust products found.", file=sys.stderr)
 
-    # 2. Scraping Luna HSM Component Versions
+    # 2. Scraping CipherTrust Transparent Encryption (CTE) Component Versions
+    print("Fetching CipherTrust Transparent Encryption (CTE) component versions...", file=sys.stderr)
+    cte_components = fetch_cte_components()
+    # Sort alphabetically by component title
+    cte_components.sort(key=lambda x: x.get("title", "").lower())
+
+    # 3. Scraping Luna HSM Component Versions
     print("Fetching Luna HSM components table...", file=sys.stderr)
     luna_components = fetch_luna_hsm_components()
     # Sort alphabetically by component title
     luna_components.sort(key=lambda x: x.get("title", "").lower())
 
-    # 3. Scraping Data Security Fabric (DSF) Component Versions
+    # 4. Scraping Data Security Fabric (DSF) Component Versions
     print("Fetching Data Security Fabric (DSF) components table...", file=sys.stderr)
     dsf_components = fetch_dsf_components()
     # Sort alphabetically by component title
     dsf_components.sort(key=lambda x: x.get("title", "").lower())
 
-    # 4. Save JSON and Manage History
+    # 5. Save JSON and Manage History
     current_file = "current.json"
     last_file = "last.json"
 
@@ -314,6 +417,7 @@ def main():
     new_data = {
         "timestamp": timestamp,
         "ciphertrust_products": cdsp_products,
+        "cte_components": cte_components,
         "luna_hsm_components": luna_components,
         "dsf_components": dsf_components
     }
@@ -325,7 +429,7 @@ def main():
     except Exception as e:
         print(f"Error saving to {current_file}: {e}", file=sys.stderr)
 
-    # 5. Compare current.json and last.json for changes
+    # 6. Compare current.json and last.json for changes
     changes = []
     if os.path.exists(last_file):
         try:
@@ -333,14 +437,15 @@ def main():
                 last_data = json.load(f)
             
             changes.extend(detect_changes(last_data.get("ciphertrust_products", []), cdsp_products, "CDSP Product"))
+            changes.extend(detect_changes(last_data.get("cte_components", []), cte_components, "CTE Component", has_date=True))
             changes.extend(detect_changes(last_data.get("luna_hsm_components", []), luna_components, "Luna HSM Component", has_date=True))
             changes.extend(detect_changes(last_data.get("dsf_components", []), dsf_components, "DSF Component"))
         except Exception as e:
             print(f"Error comparing current and last versions: {e}", file=sys.stderr)
 
-    # 6. Display Formatted CLI Output
+    # 7. Display Formatted CLI Output
     if args.format == "markdown":
-        print("# Thales CipherTrust, Luna HSM, & DSF Product Versions\n")
+        print("# Thales CipherTrust, CTE, Luna HSM, & DSF Product Versions\n")
         
         print("## CipherTrust Data Security Platform (CDSP)")
         if args.show_urls:
@@ -353,6 +458,18 @@ def main():
             print("|---|---|")
             for p in cdsp_products:
                 print(f"| {p['title']} | {p['version']} |")
+
+        print("\n## CipherTrust Transparent Encryption (CTE)")
+        if args.show_urls:
+            print("| Name | Version | Release Date | URL |")
+            print("|---|---|---|---|")
+            for c in cte_components:
+                print(f"| {c['title']} | {c['version']} | {c['date']} | [Release Notes]({c['homepage']}) |")
+        else:
+            print("| Name | Version | Release Date |")
+            print("|---|---|---|")
+            for c in cte_components:
+                print(f"| {c['title']} | {c['version']} | {c['date']} |")
             
         print("\n## Luna Network HSM Components")
         if args.show_urls:
@@ -390,6 +507,15 @@ def main():
         )
 
         print_table(
+            "CIPHERTRUST TRANSPARENT ENCRYPTION (CTE)",
+            cte_components,
+            ["title", "version", "date"],
+            ["Name", "Version", "Release Date"],
+            args.show_urls,
+            "No CTE components found."
+        )
+
+        print_table(
             "LUNA NETWORK HSM COMPONENTS",
             luna_components,
             ["title", "version", "date"],
@@ -407,7 +533,7 @@ def main():
             "No DSF components found."
         )
 
-    # 7. Display Change Detection Results
+    # 8. Display Change Detection Results
     if os.path.exists(last_file):
         if changes:
             print("\n=== DETECTED CHANGES ===")

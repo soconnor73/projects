@@ -1,15 +1,24 @@
 # Thales Product Version Scraper
 
+**Version**: `1.2.0`
+
 A lightweight Python scraping utility that automatically fetches, tracks, and logs the current latest release versions for:
 1.  **Thales CipherTrust Data Security Platform (CDSP)** products.
-2.  **Luna Network HSM 7** components.
-3.  **Data Security Fabric (DSF)** components.
+2.  **CipherTrust Transparent Encryption (CTE)** components and OS agents.
+3.  **Luna Network HSM 7** components.
+4.  **Data Security Fabric (DSF)** components.
 
 ---
 
 ## Features
 
 -   **Dynamic CDSP Discovery**: Queries the Zoomin categories tree API to dynamically locate all current CDSP products on `docs-cybersec.thalesgroup.com`.
+-   **Granular CTE Version Scraping**: Fetches OS-specific patch release versions and release dates directly from dedicated release notes pages for:
+    -   CTE for Windows
+    -   CTE for Linux
+    -   CTE for AIX
+    -   CTE UserSpace (CTE-U)
+    -   CTE for Kubernetes (CTE-K8s)
 -   **Luna HSM Table Scraping**: Scrapes the component version grid directly from the MadCap Flare static homepage on `thalesdocs.com`.
 -   **DSF Component Scraping**: Fetches the dynamic JSON topic data for the DSF integration page from the backend API to scrape its product versions table.
 -   **Change Detection**: Compares the scraped versions from the current run against the previous execution's state, detailing additions, removals, and version number/release date changes.
@@ -41,7 +50,7 @@ cd get-current-versions
 Execute the script from your terminal using Python:
 
 ### 1. Default Run (Recommended)
-Displays a clean, sorted text table of all CipherTrust, Luna, and DSF products. Automatically saves the full JSON data to `current.json` (archiving any existing state to `last.json`) and prints detected version changes.
+Displays a clean, sorted text table of all CipherTrust, CTE, Luna, and DSF products. Automatically saves the full JSON data to `current.json` (archiving any existing state to `last.json`) and prints detected version changes.
 ```bash
 python get_versions.py
 ```
@@ -58,6 +67,11 @@ Outputs the results formatted as a Markdown table (handy for generating reports 
 python get_versions.py -f markdown
 ```
 
+### 4. Display Script Version
+```bash
+python get_versions.py --version
+```
+
 ---
 
 ## File Lifecycle
@@ -70,12 +84,44 @@ When the script runs, it manages database state in the current working directory
 ### JSON State Format Example
 ```json
 {
-  "timestamp": "2026-08-31T10:58:53.575517-05:00",
+  "timestamp": "2026-08-31T11:56:38.123456-05:00",
   "ciphertrust_products": [
     {
-      "title": "CipherTrust Transparent Encryption",
-      "version": "v7.9.0 (latest)",
-      "homepage": "https://docs-cybersec.thalesgroup.com/bundle/latest-cdsp-cte/page/user-manuals/index.html"
+      "title": "CipherTrust Manager",
+      "version": "v2.24 (latest)",
+      "homepage": "https://docs-cybersec.thalesgroup.com/bundle/latest-cdsp-cm/page/get_started/index.html"
+    }
+  ],
+  "cte_components": [
+    {
+      "title": "CTE for Windows",
+      "version": "7.9.0.127",
+      "date": "2026-08-21",
+      "homepage": "https://docs-cybersec.thalesgroup.com/bundle/latest-cdsp-cte/page/release-notes/windows-rn/index.html"
+    },
+    {
+      "title": "CTE for Linux",
+      "version": "7.9.0.127",
+      "date": "2026-08-21",
+      "homepage": "https://docs-cybersec.thalesgroup.com/bundle/latest-cdsp-cte/page/release-notes/linux-rn/index.html"
+    },
+    {
+      "title": "CTE for AIX",
+      "version": "7.9.0.22",
+      "date": "2026-02-10",
+      "homepage": "https://docs-cybersec.thalesgroup.com/bundle/latest-cdsp-cte/page/release-notes/aix-rn/index.html"
+    },
+    {
+      "title": "CTE UserSpace",
+      "version": "10.6.0.53",
+      "date": "2026-08-11",
+      "homepage": "https://docs-cybersec.thalesgroup.com/bundle/latest-cdsp-cteu/page/release-notes/index.html"
+    },
+    {
+      "title": "CTE for Kubernetes",
+      "version": "1.7.0.34",
+      "date": "2026-01-07",
+      "homepage": "https://docs-cybersec.thalesgroup.com/bundle/latest-cdsp-cte-k8s/page/release-notes/index.html"
     }
   ],
   "luna_hsm_components": [
