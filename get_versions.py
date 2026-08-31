@@ -6,7 +6,6 @@ import argparse
 import sys
 import os
 from datetime import datetime
-from typing import List, Dict, Set
 
 # Disable SSL verification issues if any
 ctx = ssl.create_default_context()
@@ -22,7 +21,7 @@ def get_json(url: str) -> dict:
     with urllib.request.urlopen(req, context=ctx, timeout=15) as response:
         return json.loads(response.read().decode('utf-8', errors='ignore'))
 
-def extract_bundle_names_from_categories() -> List[str]:
+def extract_bundle_names_from_categories() -> list[str]:
     """
     Part 1 & 2: Fetches the categories tree from the Zoomin backend API,
     locates the CDSP node, and extracts all unique bundle names.
@@ -35,32 +34,33 @@ def extract_bundle_names_from_categories() -> List[str]:
         return []
 
     # Find the CDSP node in the category tree
-    cdsp_node = None
-    
     def find_node(node):
-        nonlocal cdsp_node
         if isinstance(node, dict):
             if node.get("id") == "CDSP":
-                cdsp_node = node
-                return
+                return node
             for child in node.get("children", []):
-                find_node(child)
+                found = find_node(child)
+                if found:
+                    return found
         elif isinstance(node, list):
             for item in node:
-                find_node(item)
+                found = find_node(item)
+                if found:
+                    return found
+        return None
 
-    find_node(categories)
+    cdsp_node = find_node(categories)
     if not cdsp_node:
         print("CDSP Category node not found in the documentation tree.", file=sys.stderr)
         return []
 
     # Recursively traverse CDSP node to find all routes/links
-    bundle_names: Set[str] = set()
+    bundle_names: set[str] = set()
     
     def traverse_links(node):
         if isinstance(node, dict):
             for link in node.get("subLinks", []):
-                route = link.get("route", "")
+                route = link.get("route") or ""
                 # Extract bundle name from route e.g., /bundle/latest-cdsp-cte/page/...
                 match = re.search(r'/bundle/([^/]+)/page/', route)
                 if match:
@@ -74,7 +74,7 @@ def extract_bundle_names_from_categories() -> List[str]:
     traverse_links(cdsp_node)
     return sorted(list(bundle_names))
 
-def fetch_product_details(bundle_name: str) -> Dict[str, str]:
+def fetch_product_details(bundle_name: str) -> dict[str, str]:
     """
     Part 3: Fetches details for a specific bundle, extracts its title,
     landing page path, and the current release version marked '(latest)'.
@@ -82,9 +82,9 @@ def fetch_product_details(bundle_name: str) -> Dict[str, str]:
     bundle_url = f"{API_HOST}/api/bundle/{bundle_name}"
     try:
         data = get_json(bundle_url)
-        bundle = data.get("bundle", {})
-        title = bundle.get("title", bundle_name)
-        landing_page = bundle.get("landing_page", "index.html")
+        bundle = data.get("bundle") or {}
+        title = bundle.get("title") or bundle_name
+        landing_page = bundle.get("landing_page") or "index.html"
         
         # Build home page link
         homepage = f"{PORTAL_HOST}/bundle/{bundle_name}/page/{landing_page}"
@@ -109,7 +109,7 @@ def fetch_product_details(bundle_name: str) -> Dict[str, str]:
             "homepage": f"{PORTAL_HOST}/bundle/{bundle_name}"
         }
 
-def fetch_luna_hsm_components() -> List[Dict[str, str]]:
+def fetch_luna_hsm_components() -> list[dict[str, str]]:
     """
     Fetches and parses the Luna Network HSM component versions table
     from the Luna 7 documentation page.
@@ -135,17 +135,16 @@ def fetch_luna_hsm_components() -> List[Dict[str, str]]:
             date_text = date.strip()
             
             # Extract version from anchor text
-            v_match = re.search(r'(.*?)\s+v?(\d+\.\d+(?:\.\d+)?)$', title_text)
+            v_match = re.search(r'(.*?)\s+v?(\d+(?:\.\d+)+)$', title_text)
             if v_match:
                 prod_title = v_match.group(1).strip()
                 version = v_match.group(2).strip()
-                if note_text:
-                    prod_title += f" ({note_text})"
             else:
                 prod_title = title_text
-                if note_text:
-                    prod_title += f" ({note_text})"
                 version = "Unknown"
+                
+            if note_text:
+                prod_title += f" ({note_text})"
                 
             link = f"https://www.thalesdocs.com/gphsm/luna/7/docs/network/Content/{href.strip()}"
             
@@ -160,7 +159,7 @@ def fetch_luna_hsm_components() -> List[Dict[str, str]]:
         print(f"Error fetching Luna HSM components: {e}", file=sys.stderr)
         return []
 
-def fetch_dsf_components() -> List[Dict[str, str]]:
+def fetch_dsf_components() -> list[dict[str, str]]:
     """
     Fetches and parses the Data Security Fabric (DSF) component versions table
     from the DSF Integration Guide page.
@@ -168,7 +167,7 @@ def fetch_dsf_components() -> List[Dict[str, str]]:
     url = "https://docs-cybersec-be.thalesgroup.com/api/bundle/v1-data-security-overview-and-integration-guide/page/78571.htm"
     try:
         data = get_json(url)
-        html = data.get("topic_html", "")
+        html = data.get("topic_html") or ""
         
         row_pattern = re.compile(
             r'<tr[^>]*>\s*'
@@ -189,6 +188,82 @@ def fetch_dsf_components() -> List[Dict[str, str]]:
     except Exception as e:
         print(f"Error fetching DSF components: {e}", file=sys.stderr)
         return []
+
+def detect_changes(
+    last_items: list[dict[str, str]],
+    curr_items: list[dict[str, str]],
+    category_name: str,
+    has_date: bool = False
+) -> list[str]:
+    """Compare current items against past ones to detect additions, removals, and changes."""
+    changes = []
+    last_map = {item["title"]: item for item in last_items}
+    curr_map = {item["title"]: item for item in curr_items}
+    
+    for title, curr_val in curr_map.items():
+        if title not in last_map:
+            if has_date:
+                changes.append(f"  [New {category_name}] '{title}' added (Version: {curr_val['version']}, Date: {curr_val['date']})")
+            else:
+                changes.append(f"  [New {category_name}] '{title}' added (Version: {curr_val['version']})")
+        else:
+            last_val = last_map[title]
+            if has_date:
+                version_changed = curr_val["version"] != last_val["version"]
+                date_changed = curr_val["date"] != last_val["date"]
+                if version_changed or date_changed:
+                    v_change = f"{last_val['version']} -> {curr_val['version']}" if version_changed else curr_val["version"]
+                    d_change = f"{last_val['date']} -> {curr_val['date']}" if date_changed else curr_val["date"]
+                    changes.append(f"  [{category_name} Change] '{title}': Version [{v_change}], Date [{d_change}]")
+            else:
+                if curr_val["version"] != last_val["version"]:
+                    changes.append(f"  [{category_name} Version Change] '{title}': {last_val['version']} -> {curr_val['version']}")
+                    
+    for title, last_val in last_map.items():
+        if title not in curr_map:
+            if category_name == "CDSP Product":
+                changes.append(f"  [Removed CDSP Product] '{title}' (Last Version: {last_val['version']})")
+            else:
+                changes.append(f"  [Removed {category_name}] '{title}'")
+                
+    return changes
+
+def print_table(
+    section_title: str,
+    items: list[dict[str, str]],
+    keys: list[str],
+    headers: list[str],
+    show_urls: bool,
+    empty_message: str
+) -> None:
+    """Prints a formatted console table for a list of items."""
+    print(f"\n=== {section_title} ===")
+    if not items:
+        print(empty_message)
+        return
+
+    active_keys = list(keys)
+    active_headers = list(headers)
+    if show_urls:
+        active_keys.append("homepage")
+        active_headers.append("URL")
+
+    widths = []
+    for i, key in enumerate(active_keys):
+        max_len = max(len(item.get(key, "")) for item in items)
+        max_len = max(max_len, len(active_headers[i]))
+        widths.append(max_len + 2)
+
+    # Use standard width format with trailing column unpadded for cleaner console output
+    row_fmt = " ".join(f"{{:<{widths[i]}}}" for i in range(len(widths) - 1)) + " {}"
+
+    print(row_fmt.format(*active_headers))
+    total_width = sum(widths[:-1]) + (80 if show_urls else widths[-1])
+    print("-" * total_width)
+
+    for item in items:
+        row_vals = [item.get(key, "") for key in active_keys]
+        print(row_fmt.format(*row_vals))
 
 def main():
     parser = argparse.ArgumentParser(description="Get current product version numbers for Thales CipherTrust, Luna HSM, and DSF products.")
@@ -231,9 +306,7 @@ def main():
 
     if os.path.exists(current_file):
         try:
-            if os.path.exists(last_file):
-                os.remove(last_file)
-            os.rename(current_file, last_file)
+            os.replace(current_file, last_file)
         except Exception as e:
             print(f"Warning: Could not archive current.json to last.json: {e}", file=sys.stderr)
 
@@ -259,52 +332,9 @@ def main():
             with open(last_file, "r", encoding="utf-8") as f:
                 last_data = json.load(f)
             
-            # Compare CipherTrust Products
-            last_cdsp = {p["title"]: p for p in last_data.get("ciphertrust_products", [])}
-            curr_cdsp = {p["title"]: p for p in cdsp_products}
-            
-            for title, p_curr in curr_cdsp.items():
-                if title not in last_cdsp:
-                    changes.append(f"  [New CDSP Product] '{title}' added (Version: {p_curr['version']})")
-                else:
-                    p_last = last_cdsp[title]
-                    if p_curr["version"] != p_last["version"]:
-                        changes.append(f"  [CDSP Product Version Change] '{title}': {p_last['version']} -> {p_curr['version']}")
-            for title in last_cdsp:
-                if title not in curr_cdsp:
-                    changes.append(f"  [Removed CDSP Product] '{title}' (Last Version: {last_cdsp[title]['version']})")
-            
-            # Compare Luna HSM Components
-            last_luna = {c["title"]: c for c in last_data.get("luna_hsm_components", [])}
-            curr_luna = {c["title"]: c for c in luna_components}
-            
-            for title, c_curr in curr_luna.items():
-                if title not in last_luna:
-                    changes.append(f"  [New Luna HSM Component] '{title}' added (Version: {c_curr['version']}, Date: {c_curr['date']})")
-                else:
-                    c_last = last_luna[title]
-                    if c_curr["version"] != c_last["version"] or c_curr["date"] != c_last["date"]:
-                        v_change = f"{c_last['version']} -> {c_curr['version']}" if c_curr["version"] != c_last["version"] else c_curr["version"]
-                        d_change = f"{c_last['date']} -> {c_curr['date']}" if c_curr["date"] != c_last["date"] else c_curr["date"]
-                        changes.append(f"  [Luna HSM Component Change] '{title}': Version [{v_change}], Date [{d_change}]")
-            for title in last_luna:
-                if title not in curr_luna:
-                    changes.append(f"  [Removed Luna HSM Component] '{title}'")
-
-            # Compare DSF Components
-            last_dsf = {d["title"]: d for d in last_data.get("dsf_components", [])}
-            curr_dsf = {d["title"]: d for d in dsf_components}
-            
-            for title, d_curr in curr_dsf.items():
-                if title not in last_dsf:
-                    changes.append(f"  [New DSF Component] '{title}' added (Version: {d_curr['version']})")
-                else:
-                    d_last = last_dsf[title]
-                    if d_curr["version"] != d_last["version"]:
-                        changes.append(f"  [DSF Component Version Change] '{title}': {d_last['version']} -> {d_curr['version']}")
-            for title in last_dsf:
-                if title not in curr_dsf:
-                    changes.append(f"  [Removed DSF Component] '{title}'")
+            changes.extend(detect_changes(last_data.get("ciphertrust_products", []), cdsp_products, "CDSP Product"))
+            changes.extend(detect_changes(last_data.get("luna_hsm_components", []), luna_components, "Luna HSM Component", has_date=True))
+            changes.extend(detect_changes(last_data.get("dsf_components", []), dsf_components, "DSF Component"))
         except Exception as e:
             print(f"Error comparing current and last versions: {e}", file=sys.stderr)
 
@@ -350,63 +380,32 @@ def main():
             
     else:
         # Table output
-        print("\n=== CIPHERTRUST DATA SECURITY PLATFORM (CDSP) ===")
-        if cdsp_products:
-            title_w = max(max(len(p['title']) for p in cdsp_products), 4) + 2
-            ver_w = max(max(len(p['version']) for p in cdsp_products), 7) + 2
-            if args.show_urls:
-                row_fmt = f"{{:<{title_w}}} {{:<{ver_w}}} {{}}"
-                print(row_fmt.format("Name", "Version", "URL"))
-                print("-" * (title_w + ver_w + 80))
-                for p in cdsp_products:
-                    print(row_fmt.format(p['title'], p['version'], p['homepage']))
-            else:
-                row_fmt = f"{{:<{title_w}}} {{}}"
-                print(row_fmt.format("Name", "Version"))
-                print("-" * (title_w + ver_w))
-                for p in cdsp_products:
-                    print(row_fmt.format(p['title'], p['version']))
-        else:
-            print("No CipherTrust products found.")
+        print_table(
+            "CIPHERTRUST DATA SECURITY PLATFORM (CDSP)",
+            cdsp_products,
+            ["title", "version"],
+            ["Name", "Version"],
+            args.show_urls,
+            "No CipherTrust products found."
+        )
 
-        print("\n=== LUNA NETWORK HSM COMPONENTS ===")
-        if luna_components:
-            title_w = max(max(len(c['title']) for c in luna_components), 4) + 2
-            ver_w = max(max(len(c['version']) for c in luna_components), 7) + 2
-            date_w = max(max(len(c['date']) for c in luna_components), 12) + 2
-            if args.show_urls:
-                row_fmt = f"{{:<{title_w}}} {{:<{ver_w}}} {{:<{date_w}}} {{}}"
-                print(row_fmt.format("Name", "Version", "Release Date", "URL"))
-                print("-" * (title_w + ver_w + date_w + 80))
-                for c in luna_components:
-                    print(row_fmt.format(c['title'], c['version'], c['date'], c['homepage']))
-            else:
-                row_fmt = f"{{:<{title_w}}} {{:<{ver_w}}} {{}}"
-                print(row_fmt.format("Name", "Version", "Release Date"))
-                print("-" * (title_w + ver_w + date_w))
-                for c in luna_components:
-                    print(row_fmt.format(c['title'], c['version'], c['date']))
-        else:
-            print("No Luna HSM components found.")
+        print_table(
+            "LUNA NETWORK HSM COMPONENTS",
+            luna_components,
+            ["title", "version", "date"],
+            ["Name", "Version", "Release Date"],
+            args.show_urls,
+            "No Luna HSM components found."
+        )
 
-        print("\n=== DATA SECURITY FABRIC (DSF) ===")
-        if dsf_components:
-            title_w = max(max(len(d['title']) for d in dsf_components), 4) + 2
-            ver_w = max(max(len(d['version']) for d in dsf_components), 7) + 2
-            if args.show_urls:
-                row_fmt = f"{{:<{title_w}}} {{:<{ver_w}}} {{}}"
-                print(row_fmt.format("Name", "Version", "URL"))
-                print("-" * (title_w + ver_w + 80))
-                for d in dsf_components:
-                    print(row_fmt.format(d['title'], d['version'], d['homepage']))
-            else:
-                row_fmt = f"{{:<{title_w}}} {{}}"
-                print(row_fmt.format("Name", "Version"))
-                print("-" * (title_w + ver_w))
-                for d in dsf_components:
-                    print(row_fmt.format(d['title'], d['version']))
-        else:
-            print("No DSF components found.")
+        print_table(
+            "DATA SECURITY FABRIC (DSF)",
+            dsf_components,
+            ["title", "version"],
+            ["Name", "Version"],
+            args.show_urls,
+            "No DSF components found."
+        )
 
     # 7. Display Change Detection Results
     if os.path.exists(last_file):
