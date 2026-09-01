@@ -1,6 +1,6 @@
 # Thales Product Version Scraper
 
-**Version**: `1.0.0`
+**Version**: `1.0.1`
 
 A lightweight Python scraping utility that automatically fetches, tracks, and logs the current latest release versions for:
 1.  **Thales CipherTrust Data Security Platform (CDSP)** products.
