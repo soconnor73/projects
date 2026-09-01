@@ -4,7 +4,7 @@ services:
     image: thales-version-scraper
     container_name: thales-version-scraper
     ports:
-      - "80:80"
+      - "3210:80"
     environment:
       # Controls when the daily midnight scan runs.
       TZ: America/New_York

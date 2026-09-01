@@ -88,24 +88,31 @@ python get_versions.py --version
 
 ## Docker
 
-The repo ships a container that runs the scan once on start-up, re-runs it **every day at local midnight**, and serves the generated `versions.html` over HTTP on **port 80**. It uses only the Python standard library (no web framework).
+The repo ships a container that runs the scan once on start-up, re-runs it **every day at local midnight**, and serves the generated `versions.html` over HTTP on container port 80. It uses only the Python standard library (no web framework).
 
-### Build & run
+Two compose files are provided:
+
+| File | Use | Exposure |
+|------|-----|----------|
+| `docker-compose-local.yml` | local runs / QA | publishes host port **3210** → container 80 |
+| `docker-compose-traefik.yml` | deploy behind a Traefik reverse proxy | no published port; routed by `Host()` label on the external `proxy_network` |
+
+### Build & run (local)
 ```bash
 cd get-current-versions
 
 # with docker compose (recommended)
-docker compose up -d --build
+docker compose -f docker-compose-local.yml up -d --build
 
 # or plain docker
 docker build -t thales-version-scraper .
 docker run -d --name thales-version-scraper \
-    -p 80:80 \
+    -p 3210:80 \
     -e TZ=America/New_York \
     thales-version-scraper
 ```
 
-Then open `http://localhost/` — `/` and `/index.html` both serve `versions.html`. While the first scan is running a lightweight placeholder page is served and auto-refreshes.
+Then open `http://localhost:3210/` — `/` and `/index.html` both serve `versions.html`. While the first scan is running a lightweight placeholder page is served and auto-refreshes.
 
 Everything runs inside the container: nothing is mounted from the host. State
 files (`current.json` / `last.json`) and the report are ephemeral and rebuilt
