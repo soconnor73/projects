@@ -5,6 +5,8 @@ import re
 import argparse
 import sys
 import os
+import base64
+import html as html_lib
 from datetime import datetime
 
 # Disable SSL verification issues if any
@@ -12,7 +14,7 @@ ctx = ssl.create_default_context()
 ctx.check_hostname = False
 ctx.verify_mode = ssl.CERT_NONE
 
-__version__ = "1.2.0"
+__version__ = "1.0.0"
 
 API_HOST = "https://docs-cybersec-be.thalesgroup.com"
 PORTAL_HOST = "https://docs-cybersec.thalesgroup.com"
@@ -360,6 +362,202 @@ def print_table(
         row_vals = [item.get(key, "") for key in active_keys]
         print(row_fmt.format(*row_vals))
 
+HTML_STYLE = """
+:root {
+    --navy: #071b3a;
+    --blue: #003da5;
+    --azure: #0076ff;
+    --steel: #4f6e9e;
+    --cool-gray: #d8dee9;
+    --light: #f5f7fa;
+    --charcoal: #1a1f2b;
+    --success: #00a870;
+    --warning: #f5a623;
+    --danger: #d62d20;
+    --radius: 8px;
+}
+* { box-sizing: border-box; }
+body {
+    margin: 0;
+    background: var(--light);
+    color: var(--charcoal);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+a { color: var(--blue); }
+.topbar {
+    background: var(--navy);
+    color: white;
+    padding: 0.7rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+.topbar .mark { height: 1.6rem; width: auto; flex-shrink: 0; }
+.topbar .brand { font-weight: 700; font-size: 1.05rem; }
+.topbar .tagline { color: var(--cool-gray); font-size: 0.85rem; }
+.wrap { max-width: 960px; margin: 2rem auto 4rem; padding: 0 1.5rem; }
+h1 { margin: 0 0 0.5rem; color: var(--navy); }
+.meta {
+    color: var(--steel);
+    font-size: 0.88rem;
+    margin: 0 0 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--cool-gray);
+}
+.section-title { color: var(--navy); margin: 1.75rem 0 0.6rem; }
+.table-wrap { overflow-x: auto; margin: 0 0 1rem; }
+table { width: 100%; border-collapse: collapse; font-size: 0.88rem; background: white; }
+th {
+    background: var(--navy);
+    color: white;
+    text-align: left;
+    padding: 0.5rem 0.7rem;
+    border: 1px solid var(--navy);
+}
+td {
+    padding: 0.5rem 0.7rem;
+    border: 1px solid var(--cool-gray);
+    vertical-align: top;
+}
+tbody tr:nth-child(even) { background: var(--light); }
+.empty { color: var(--steel); font-style: italic; }
+.changes { list-style: none; padding: 0; margin: 0; }
+.changes li {
+    padding: 0.4rem 0.7rem;
+    border-left: 3px solid var(--steel);
+    background: white;
+    margin-bottom: 0.35rem;
+    font-size: 0.88rem;
+}
+.changes li.added { border-left-color: var(--success); }
+.changes li.removed { border-left-color: var(--danger); }
+.changes li.changed { border-left-color: var(--warning); }
+.no-changes { color: var(--success); font-weight: 600; }
+"""
+
+
+def _esc(value: str) -> str:
+    return html_lib.escape(str(value or ""))
+
+
+def _logo_img() -> str:
+    """Return an <img> tag with the Thales logo inlined as a data URI, or '' if missing."""
+    svg_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "Thales_A_white.svg")
+    try:
+        with open(svg_path, "rb") as f:
+            encoded = base64.b64encode(f.read()).decode("ascii")
+        return f'<img class="mark" alt="Thales" src="data:image/svg+xml;base64,{encoded}">'
+    except OSError:
+        return ""
+
+
+def _html_table(
+    items: list[dict[str, str]],
+    columns: list[tuple[str, str]],
+    empty_message: str,
+) -> str:
+    """Render one section table. `columns` is a list of (key, header) pairs."""
+    if not items:
+        return f'<p class="empty">{_esc(empty_message)}</p>'
+
+    head = "".join(f"<th>{_esc(header)}</th>" for _, header in columns)
+    rows = []
+    for item in items:
+        cells = []
+        for key, _ in columns:
+            if key == "homepage":
+                url = item.get("homepage", "")
+                cells.append(
+                    f'<td><a href="{_esc(url)}" target="_blank" rel="noopener">Docs</a></td>'
+                    if url else "<td></td>"
+                )
+            else:
+                cells.append(f"<td>{_esc(item.get(key, ''))}</td>")
+        rows.append(f"<tr>{''.join(cells)}</tr>")
+
+    return (
+        '<div class="table-wrap"><table>'
+        f"<thead><tr>{head}</tr></thead>"
+        f"<tbody>{''.join(rows)}</tbody>"
+        "</table></div>"
+    )
+
+
+def render_html(data: dict, changes: list[str], has_last: bool) -> str:
+    """Build a full standalone HTML report for the scraped version data."""
+    ts = data.get("timestamp", "")
+    try:
+        ts_display = datetime.fromisoformat(ts).strftime("%Y-%m-%d %H:%M:%S %Z").strip()
+    except ValueError:
+        ts_display = ts
+
+    sections = [
+        (
+            "CipherTrust Data Security Platform (CDSP)",
+            data.get("ciphertrust_products", []),
+            [("title", "Name"), ("version", "Version"), ("homepage", "Docs")],
+            "No CipherTrust products found.",
+        ),
+        (
+            "CipherTrust Transparent Encryption (CTE)",
+            data.get("cte_components", []),
+            [("title", "Name"), ("version", "Version"), ("date", "Release Date"), ("homepage", "Docs")],
+            "No CTE components found.",
+        ),
+        (
+            "Luna Network HSM Components",
+            data.get("luna_hsm_components", []),
+            [("title", "Name"), ("version", "Version"), ("date", "Release Date"), ("homepage", "Docs")],
+            "No Luna HSM components found.",
+        ),
+        (
+            "Data Security Fabric (DSF)",
+            data.get("dsf_components", []),
+            [("title", "Name"), ("version", "Version"), ("homepage", "Docs")],
+            "No DSF components found.",
+        ),
+    ]
+
+    body_parts = []
+    for title, items, columns, empty_message in sections:
+        body_parts.append(f'<h2 class="section-title">{_esc(title)}</h2>')
+        body_parts.append(_html_table(items, columns, empty_message))
+
+    if has_last:
+        body_parts.append('<h2 class="section-title">Detected Changes</h2>')
+        if changes:
+            change_items = []
+            for change in changes:
+                lowered = change.lower()
+                if "added" in lowered or "[new" in lowered:
+                    cls = "added"
+                elif "removed" in lowered:
+                    cls = "removed"
+                else:
+                    cls = "changed"
+                change_items.append(f'<li class="{cls}">{_esc(change.strip())}</li>')
+            body_parts.append(f'<ul class="changes">{"".join(change_items)}</ul>')
+        else:
+            body_parts.append('<p class="no-changes">No changes detected since the previous run.</p>')
+
+    return (
+        "<!DOCTYPE html>\n"
+        '<html lang="en">\n<head>\n<meta charset="utf-8">\n'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
+        "<title>Thales Product Versions</title>\n"
+        f"<style>{HTML_STYLE}</style>\n"
+        "</head>\n<body>\n"
+        f'<header class="topbar">{_logo_img()}'
+        '<span class="brand">Thales Product Versions</span>'
+        '<span class="tagline">CDSP &middot; CTE &middot; Luna HSM &middot; DSF</span></header>\n'
+        '<main class="wrap">\n'
+        "<h1>Current Product Versions</h1>\n"
+        f'<p class="meta">Generated {_esc(ts_display)}</p>\n'
+        + "\n".join(body_parts)
+        + "\n</main>\n</body>\n</html>\n"
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(description="Get current product version numbers for Thales CipherTrust (CDSP), CipherTrust Transparent Encryption (CTE), Luna HSM, and DSF products.")
     parser.add_argument("-v", "--version", action="version", version=f"%(prog)s {__version__}",
@@ -368,6 +566,8 @@ def main():
                         help="CLI output format (default: table)")
     parser.add_argument("--show-urls", action="store_true",
                         help="Display product homepage URLs in CLI output (off by default)")
+    parser.add_argument("--html", nargs="?", const="versions.html", metavar="FILE",
+                        help="Also write an HTML report with formatted tables (default file: versions.html)")
     args = parser.parse_args()
 
     # 1. Scraping CipherTrust (CDSP) Versions
@@ -541,6 +741,16 @@ def main():
                 print(change)
         else:
             print("\n=== NO CHANGES DETECTED ===")
+
+    # 9. Optional HTML Report
+    if args.html:
+        try:
+            html_out = render_html(new_data, changes, os.path.exists(last_file))
+            with open(args.html, "w", encoding="utf-8") as f:
+                f.write(html_out)
+            print(f"Wrote HTML report to {args.html}", file=sys.stderr)
+        except Exception as e:
+            print(f"Error writing HTML report to {args.html}: {e}", file=sys.stderr)
 
 if __name__ == "__main__":
     main()

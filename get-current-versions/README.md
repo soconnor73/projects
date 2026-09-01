@@ -1,6 +1,6 @@
 # Thales Product Version Scraper
 
-**Version**: `1.2.0`
+**Version**: `1.0.0`
 
 A lightweight Python scraping utility that automatically fetches, tracks, and logs the current latest release versions for:
 1.  **Thales CipherTrust Data Security Platform (CDSP)** products.
@@ -23,7 +23,8 @@ A lightweight Python scraping utility that automatically fetches, tracks, and lo
 -   **DSF Component Scraping**: Fetches the dynamic JSON topic data for the DSF integration page from the backend API to scrape its product versions table.
 -   **Change Detection**: Compares the scraped versions from the current run against the previous execution's state, detailing additions, removals, and version number/release date changes.
 -   **State History**: Automatically archives the previous run to `last.json` and saves the current state to `current.json` with an ISO 8601 creation timestamp.
--   **Zero Dependencies**: Written purely in Python using built-in standard libraries (`urllib`, `re`, `json`, `argparse`, `os`, `datetime`).
+-   **HTML Report**: Optionally emits a standalone, nicely formatted HTML page (`--html`) with one table per product group and a highlighted change list.
+-   **Zero Dependencies**: Written purely in Python using built-in standard libraries (`urllib`, `re`, `json`, `argparse`, `os`, `html`, `datetime`).
 
 ---
 
@@ -67,10 +68,65 @@ Outputs the results formatted as a Markdown table (handy for generating reports 
 python get_versions.py -f markdown
 ```
 
-### 4. Display Script Version
+### 4. HTML Report
+Add the `--html` flag to also write a standalone, styled HTML page with formatted tables for every product group (plus a detected-changes list). The console/Markdown output is still printed as usual.
+```bash
+# Write to the default file (versions.html in the working directory)
+python get_versions.py --html
+
+# Write to a specific path
+python get_versions.py --html ./dist/versions.html
+```
+The generated file is self-contained (inline CSS, no external assets) and safe to open directly in a browser or share.
+
+### 5. Display Script Version
 ```bash
 python get_versions.py --version
 ```
+
+---
+
+## Docker
+
+The repo ships a container that runs the scan once on start-up, re-runs it **every day at local midnight**, and serves the generated `versions.html` over HTTP on **port 80**. It uses only the Python standard library (no web framework).
+
+### Build & run
+```bash
+cd get-current-versions
+
+# with docker compose (recommended)
+docker compose up -d --build
+
+# or plain docker
+docker build -t thales-version-scraper .
+docker run -d --name thales-version-scraper \
+    -p 80:80 \
+    -e TZ=America/New_York \
+    thales-version-scraper
+```
+
+Then open `http://localhost/` — `/` and `/index.html` both serve `versions.html`. While the first scan is running a lightweight placeholder page is served and auto-refreshes.
+
+Everything runs inside the container: nothing is mounted from the host. State
+files (`current.json` / `last.json`) and the report are ephemeral and rebuilt
+from scratch each time the container starts — the boot scan means the page is
+current within a minute of every restart.
+
+### Configuration
+
+| Variable   | Default  | Purpose                                                        |
+|------------|----------|---------------------------------------------------------------|
+| `TZ`       | `UTC`    | Time zone that defines when "midnight" is (needs a valid tz name, e.g. `Europe/Dublin`). |
+| `PORT`     | `80`     | Port the HTTP server listens on inside the container.          |
+| `DATA_DIR` | `/data`  | In-container directory for `current.json`, `last.json`, and `versions.html`. |
+
+A `HEALTHCHECK` polls the HTTP server every 30s.
+
+### How the schedule works
+
+`serve.py` supervises everything in one process:
+- on start it writes a placeholder, kicks off a background scan, and starts the HTTP server immediately;
+- a scheduler thread sleeps until the next local midnight, runs `get_versions.py --html /data/versions.html`, and repeats.
 
 ---
 
