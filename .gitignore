@@ -1,0 +1,14 @@
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local state & release archives
+*.json
+*.zip
+
+# Environment & IDE
+.venv/
+env/
+.idea/
+.vscode/
