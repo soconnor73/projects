@@ -90,12 +90,13 @@ python get_versions.py --version
 
 The repo ships a container that runs the scan once on start-up, re-runs it **every day at local midnight**, and serves the generated `versions.html` over HTTP on container port 80. It uses only the Python standard library (no web framework).
 
-Two compose files are provided:
+Three compose files are provided; all read the image tag from `VERSION` in `.env`:
 
 | File | Use | Exposure |
 |------|-----|----------|
 | `docker-compose-local.yml` | local runs / QA | publishes host port **3210** → container 80 |
-| `docker-compose-traefik.yml` | deploy behind a Traefik reverse proxy | no published port; routed by `Host()` label on the external `proxy_network` |
+| `docker-compose-staging.yml` | staging (`cargo.apoapsis.xyz`), behind Traefik | no published port; `Host(\`ver.apoapsis.xyz\`)` on the external `proxy_network` |
+| `docker-compose-prod.yml` | production, behind Traefik | no published port; `Host(\`ver.thalescryptolabs.com\`)` on the external `proxy_network` |
 
 ### Build & run (local)
 ```bash

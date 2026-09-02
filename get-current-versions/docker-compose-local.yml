@@ -1,7 +1,7 @@
 services:
   version-scraper:
     build: .
-    image: thales-version-scraper
+    image: thales-version-scraper:${VERSION:-latest}
     container_name: thales-version-scraper
     ports:
       - "3210:80"
