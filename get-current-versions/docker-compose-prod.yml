@@ -16,6 +16,7 @@ services:
       - traefik.http.routers.ver.entrypoints=websecure
       - traefik.http.services.ver.loadbalancer.server.port=80
       - traefik.http.routers.ver.tls=true
+      - traefik.http.routers.ver.tls.certresolver=le-dns-google
 networks:
   proxy_network:
     external: true
