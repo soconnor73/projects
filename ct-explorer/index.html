@@ -1,0 +1,3021 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CipherTrust API Explorer</title>
+  <!-- Google Fonts: Outfit & Fira Code -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    /* -------------------------------------------------------------
+       CORE DESIGN SYSTEM & VARIABLES
+       ------------------------------------------------------------- */
+    :root {
+      --bg-primary: #090d16;
+      --bg-secondary: #111827;
+      --bg-tertiary: #1f2937;
+      --bg-glass: rgba(17, 24, 39, 0.7);
+      --border-glass: rgba(255, 255, 255, 0.06);
+      --border-glass-hover: rgba(255, 255, 255, 0.12);
+      
+      --text-primary: #f9fafb;
+      --text-secondary: #9ca3af;
+      --text-muted: #6b7280;
+      
+      /* Method Colors */
+      --color-get: #0ea5e9;
+      --color-get-bg: rgba(14, 165, 233, 0.15);
+      --color-post: #10b981;
+      --color-post-bg: rgba(16, 185, 129, 0.15);
+      --color-put: #8b5cf6;
+      --color-put-bg: rgba(139, 92, 246, 0.15);
+      --color-delete: #ef4444;
+      --color-delete-bg: rgba(239, 68, 68, 0.15);
+      --color-patch: #f59e0b;
+      --color-patch-bg: rgba(245, 158, 11, 0.15);
+      
+      /* Accents */
+      --accent-cyan: #06b6d4;
+      --accent-cyan-glow: rgba(6, 182, 212, 0.3);
+      --accent-indigo: #6366f1;
+      
+      --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: 'Fira Code', monospace;
+      
+      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+      --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.5);
+      --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.6);
+      --shadow-glow: 0 0 20px rgba(6, 182, 212, 0.15);
+      
+      --radius-sm: 6px;
+      --radius-md: 12px;
+      --radius-lg: 20px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      background-image: 
+        radial-gradient(circle at 80% 20%, rgba(99, 102, 241, 0.05), transparent 40%),
+        radial-gradient(circle at 10% 80%, rgba(6, 182, 212, 0.05), transparent 40%);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 15px;
+      line-height: 1.5;
+      height: 100vh;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* -------------------------------------------------------------
+       SCROLLBAR STYLES
+       ------------------------------------------------------------- */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--bg-tertiary);
+      border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-muted);
+    }
+
+    /* -------------------------------------------------------------
+       LAYOUT UTILITIES
+       ------------------------------------------------------------- */
+    .app-container {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+    }
+
+    /* -------------------------------------------------------------
+       SIDEBAR & SEARCH PANEL
+       ------------------------------------------------------------- */
+    .sidebar {
+      width: 380px;
+      min-width: 380px;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border-glass);
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      z-index: 10;
+      box-shadow: var(--shadow-md);
+    }
+
+    .sidebar-header {
+      padding: 24px;
+      border-bottom: 1px solid var(--border-glass);
+    }
+
+    .app-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .logo-icon {
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo-icon svg {
+      width: 28px;
+      height: 28px;
+    }
+
+    .logo-text {
+      font-size: 19px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      background: linear-gradient(to right, #ffffff, #9ca3af);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .search-container {
+      position: relative;
+      margin-bottom: 16px;
+    }
+
+    .search-input {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-md);
+      padding: 12px 16px 12px 42px;
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      transition: all 0.2s ease;
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.15);
+      background: rgba(0, 0, 0, 0.35);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 18px;
+      height: 18px;
+      stroke: var(--text-secondary);
+      fill: none;
+      pointer-events: none;
+    }
+
+    .filter-section {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .method-filters {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-glass);
+      border-radius: 20px;
+      padding: 5px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .filter-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-primary);
+    }
+
+    .filter-btn.active[data-method="GET"] { background: var(--color-get-bg); border-color: var(--color-get); color: var(--color-get); }
+    .filter-btn.active[data-method="POST"] { background: var(--color-post-bg); border-color: var(--color-post); color: var(--color-post); }
+    .filter-btn.active[data-method="PUT"] { background: var(--color-put-bg); border-color: var(--color-put); color: var(--color-put); }
+    .filter-btn.active[data-method="DELETE"] { background: var(--color-delete-bg); border-color: var(--color-delete); color: var(--color-delete); }
+    .filter-btn.active[data-method="PATCH"] { background: var(--color-patch-bg); border-color: var(--color-patch); color: var(--color-patch); }
+
+    .tag-filter-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      max-width: 100%;
+    }
+
+    .tag-select {
+      flex: 1;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+      color: var(--text-secondary);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      outline: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .tag-select:focus {
+      border-color: var(--accent-cyan);
+    }
+
+    .tag-select option {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+    }
+
+    .results-count {
+      padding: 12px 24px 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .results-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .endpoint-item {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 12px;
+      margin-bottom: 6px;
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.01);
+      border: 1px solid rgba(255, 255, 255, 0.02);
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .endpoint-item:hover {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: var(--border-glass-hover);
+      transform: translateX(4px);
+    }
+
+    .endpoint-item.active {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(6, 182, 212, 0.4);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .endpoint-item-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .method-badge {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      min-width: 52px;
+      text-align: center;
+      letter-spacing: 0.5px;
+    }
+
+    .method-badge.get { color: var(--color-get); background: var(--color-get-bg); border: 1px solid rgba(14, 165, 233, 0.3); }
+    .method-badge.post { color: var(--color-post); background: var(--color-post-bg); border: 1px solid rgba(16, 185, 129, 0.3); }
+    .method-badge.put { color: var(--color-put); background: var(--color-put-bg); border: 1px solid rgba(139, 92, 246, 0.3); }
+    .method-badge.delete { color: var(--color-delete); background: var(--color-delete-bg); border: 1px solid rgba(239, 68, 68, 0.3); }
+    .method-badge.patch { color: var(--color-patch); background: var(--color-patch-bg); border: 1px solid rgba(245, 158, 11, 0.3); }
+
+    .endpoint-path {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+    }
+
+    .search-highlight {
+      color: var(--accent-cyan);
+      font-weight: 700;
+      text-decoration: underline;
+    }
+
+    .endpoint-summary {
+      font-size: 13px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Tag Grouping in Sidebar */
+    .tag-group-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: var(--radius-sm);
+      margin-top: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      border: 1px solid rgba(255, 255, 255, 0.03);
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+    .tag-group-header:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: var(--border-glass-hover);
+    }
+    .tag-group-toggle {
+      font-size: 8px;
+      color: var(--text-muted);
+      transition: transform 0.2s ease;
+      display: inline-block;
+      width: 10px;
+      text-align: center;
+    }
+    .tag-group-toggle.collapsed {
+      transform: rotate(-90deg);
+    }
+    .tag-group-title {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .tag-group-count {
+      font-size: 10px;
+      color: var(--text-muted);
+      background: var(--bg-tertiary);
+      padding: 1px 6px;
+      border-radius: 10px;
+      font-weight: 500;
+    }
+    .tag-group-content {
+      display: block;
+      margin-top: 4px;
+      padding-left: 8px;
+      border-left: 1px dashed rgba(255, 255, 255, 0.05);
+    }
+    .tag-group-content.collapsed {
+      display: none;
+    }
+
+    /* -------------------------------------------------------------
+       MAIN CONTENT CONTAINER
+       ------------------------------------------------------------- */
+    .main-content {
+      flex: 1;
+      height: 100%;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* Empty Welcome State */
+    .welcome-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      padding: 40px;
+      text-align: center;
+    }
+
+    .welcome-icon {
+      width: 80px;
+      height: 80px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-lg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .welcome-icon svg {
+      width: 40px;
+      height: 40px;
+      stroke: var(--text-muted);
+      fill: none;
+    }
+
+    .welcome-title {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      background: linear-gradient(to right, #ffffff, #9ca3af);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .welcome-text {
+      font-size: 15px;
+      color: var(--text-secondary);
+      max-width: 460px;
+      margin-bottom: 30px;
+    }
+
+    .welcome-features {
+      display: grid;
+      grid-template-columns: repeat(2, 200px);
+      gap: 16px;
+      justify-content: center;
+    }
+
+    .feature-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .feature-card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .feature-card-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* -------------------------------------------------------------
+       ENDPOINT DETAILS HEADER
+       ------------------------------------------------------------- */
+    .details-pane {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .details-header {
+      padding: 30px 40px 20px;
+      background: rgba(255, 255, 255, 0.01);
+      border-bottom: 1px solid var(--border-glass);
+      height: 250px;
+      min-height: 120px;
+      max-height: 70%;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+
+    .pane-resizer {
+      height: 6px;
+      min-height: 6px;
+      background: var(--border-glass);
+      cursor: row-resize;
+      transition: background 0.2s ease;
+      z-index: 20;
+      position: relative;
+    }
+
+    .pane-resizer:hover, .pane-resizer.dragging {
+      background: var(--accent-cyan);
+      box-shadow: 0 0 10px rgba(6, 182, 212, 0.4);
+    }
+
+    .pane-resizer::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 40px;
+      height: 2px;
+      background: var(--text-muted);
+      border-radius: 1px;
+    }
+
+    .details-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .details-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .details-title-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .details-path-box {
+      display: flex;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-md);
+      padding: 8px 14px;
+      font-family: var(--font-mono);
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text-primary);
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .details-path-text {
+      overflow-x: auto;
+      white-space: nowrap;
+      flex: 1;
+    }
+
+    .copy-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-sm);
+      padding: 6px;
+      cursor: pointer;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      margin-left: 10px;
+    }
+
+    .copy-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-primary);
+      border-color: var(--accent-cyan);
+    }
+
+    .copy-btn svg {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      fill: none;
+    }
+
+    .details-summary {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 10px;
+    }
+
+    .details-desc {
+      font-size: 14px;
+      color: var(--text-secondary);
+      max-width: 900px;
+      line-height: 1.6;
+    }
+
+    .details-tags-list {
+      display: flex;
+      gap: 6px;
+      margin-top: 14px;
+    }
+
+    .tag-badge {
+      background: rgba(99, 102, 241, 0.1);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      color: #a5b4fc;
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    /* -------------------------------------------------------------
+       TABS DESIGN
+       ------------------------------------------------------------- */
+    .tabs-bar {
+      display: flex;
+      padding: 0 40px;
+      background: rgba(255, 255, 255, 0.01);
+      border-bottom: 1px solid var(--border-glass);
+      gap: 30px;
+    }
+
+    .tab-item {
+      padding: 16px 4px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .tab-item:hover {
+      color: var(--text-primary);
+    }
+
+    .tab-item.active {
+      color: var(--accent-cyan);
+      border-bottom-color: var(--accent-cyan);
+    }
+
+    .tab-item-badge {
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 10px;
+      margin-left: 6px;
+    }
+
+    .tab-item.active .tab-item-badge {
+      background: var(--color-get-bg);
+      color: var(--accent-cyan);
+    }
+
+    .tab-content-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 30px 40px;
+    }
+
+    .tab-pane {
+      display: none;
+      height: 100%;
+    }
+
+    .tab-pane.active {
+      display: block;
+    }
+
+    /* -------------------------------------------------------------
+       TAB PANELS: PARAMETERS
+       ------------------------------------------------------------- */
+    .empty-tab-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 200px;
+      color: var(--text-muted);
+      border: 1px dashed var(--border-glass);
+      border-radius: var(--radius-md);
+      gap: 8px;
+    }
+
+    .empty-tab-state svg {
+      width: 32px;
+      height: 32px;
+      stroke: var(--text-muted);
+      fill: none;
+    }
+
+    .premium-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    .premium-table th {
+      padding: 12px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--border-glass);
+    }
+
+    .premium-table td {
+      padding: 16px;
+      font-size: 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      vertical-align: top;
+    }
+
+    .param-name-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .param-name {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .param-req {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 2px 5px;
+      border-radius: 4px;
+      width: fit-content;
+    }
+
+    .param-req.required {
+      color: var(--color-delete);
+      background: var(--color-delete-bg);
+    }
+
+    .param-req.optional {
+      color: var(--text-muted);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .param-in-badge {
+      font-size: 11px;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-glass);
+      color: var(--text-secondary);
+      padding: 2px 6px;
+      border-radius: 4px;
+      display: inline-block;
+    }
+
+    .param-type-badge {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--accent-cyan);
+    }
+
+    .param-desc {
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* -------------------------------------------------------------
+       TAB PANELS: REQUEST BODY (SCHEMA + MOCK)
+       ------------------------------------------------------------- */
+    .body-tab-layout {
+      display: flex;
+      gap: 30px;
+      height: 100%;
+      min-height: 500px;
+    }
+
+    .schema-tree-pane {
+      flex: 7;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.01);
+    }
+
+    .schema-header {
+      display: grid;
+      grid-template-columns: 240px 100px 90px 1fr;
+      padding: 12px 16px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      background: rgba(0, 0, 0, 0.2);
+      border-bottom: 1px solid var(--border-glass);
+    }
+
+    .schema-rows-container {
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .schema-row {
+      display: grid;
+      grid-template-columns: 240px 100px 90px 1fr;
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+      font-size: 13px;
+      transition: background 0.15s ease;
+      align-items: center;
+    }
+
+    .schema-row:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .schema-col-name {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-primary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .tree-toggle {
+      width: 16px;
+      height: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: transform 0.2s ease, color 0.2s ease;
+    }
+
+    .tree-toggle:hover {
+      color: var(--text-primary);
+    }
+
+    .tree-toggle.expanded {
+      transform: rotate(90deg);
+    }
+
+    .schema-col-type {
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+
+    .badge-type-object { color: #f97316; }
+    .badge-type-array { color: var(--accent-cyan); }
+    .badge-type-string { color: var(--color-post); }
+    .badge-type-integer { color: #3b82f6; }
+    .badge-type-boolean { color: var(--color-put); }
+    .badge-type-number { color: #06b6d4; }
+    .badge-type-circular { color: var(--color-delete); font-style: italic; }
+
+    .schema-col-required {
+      font-size: 10px;
+    }
+
+    .schema-col-desc {
+      color: var(--text-secondary);
+      font-size: 12px;
+      line-height: 1.4;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .schema-col-desc:hover {
+      white-space: normal;
+      overflow: visible;
+    }
+
+    /* Mock JSON Pane */
+    .mock-payload-pane {
+      flex: 5;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      background: #05070c;
+    }
+
+    .mock-pane-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 16px;
+      background: rgba(255, 255, 255, 0.02);
+      border-bottom: 1px solid var(--border-glass);
+    }
+
+    .mock-pane-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .mock-code-container {
+      flex: 1;
+      padding: 16px;
+      overflow: auto;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .json-key { color: #f43f5e; }
+    .json-string { color: #10b981; }
+    .json-number { color: #3b82f6; }
+    .json-boolean { color: #8b5cf6; }
+    .json-null { color: #6b7280; }
+
+    /* -------------------------------------------------------------
+       TAB PANELS: RESPONSES
+       ------------------------------------------------------------- */
+    .responses-container {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .response-card {
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.01);
+      overflow: hidden;
+    }
+
+    .response-card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 20px;
+      background: rgba(255, 255, 255, 0.02);
+      border-bottom: 1px solid var(--border-glass);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .response-status-badge {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    .response-status-badge.success { color: var(--color-post); background: var(--color-post-bg); border: 1px solid rgba(16, 185, 129, 0.2); }
+    .response-status-badge.client-error { color: var(--color-patch); background: var(--color-patch-bg); border: 1px solid rgba(245, 158, 11, 0.2); }
+    .response-status-badge.server-error { color: var(--color-delete); background: var(--color-delete-bg); border: 1px solid rgba(239, 68, 68, 0.2); }
+
+    .response-card-desc {
+      font-size: 13px;
+      color: var(--text-secondary);
+      flex: 1;
+    }
+
+    .response-card-toggle {
+      color: var(--text-muted);
+      transition: transform 0.2s ease;
+    }
+
+    .response-card.expanded .response-card-toggle {
+      transform: rotate(180deg);
+    }
+
+    .response-card-body {
+      display: none;
+      padding: 20px;
+      background: #05070c;
+      border-top: 1px solid var(--border-glass);
+    }
+
+    .response-card.expanded .response-card-body {
+      display: block;
+    }
+
+    .response-body-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 10px;
+    }
+
+    /* -------------------------------------------------------------
+       OVERLAYS (LOADING & DRAG & DROP SELECTOR)
+       ------------------------------------------------------------- */
+    .overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg-primary);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.3s ease;
+    }
+
+    .overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .spinner-ring {
+      width: 50px;
+      height: 50px;
+      border: 3px solid rgba(6, 182, 212, 0.1);
+      border-radius: 50%;
+      border-top-color: var(--accent-cyan);
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .overlay-text {
+      font-size: 15px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    /* Drag & Drop Zone */
+    .dropzone-container {
+      max-width: 520px;
+      width: 90%;
+      background: var(--bg-secondary);
+      border: 2px dashed rgba(6, 182, 212, 0.3);
+      border-radius: var(--radius-lg);
+      padding: 50px 30px;
+      text-align: center;
+      box-shadow: var(--shadow-lg);
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .dropzone-container.dragover {
+      border-color: var(--accent-cyan);
+      background: rgba(6, 182, 212, 0.04);
+      box-shadow: var(--shadow-glow);
+    }
+
+    .dropzone-icon {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: rgba(6, 182, 212, 0.05);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent-cyan);
+      margin-bottom: 8px;
+    }
+
+    .dropzone-icon svg {
+      width: 30px;
+      height: 30px;
+      stroke: currentColor;
+      fill: none;
+    }
+
+    .dropzone-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .dropzone-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-width: 1.5;
+    }
+
+    .browse-btn {
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-indigo));
+      border: none;
+      border-radius: var(--radius-md);
+      padding: 10px 24px;
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: var(--shadow-sm);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .browse-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-glow);
+    }
+
+    .hidden-file-input {
+      display: none;
+    }
+
+    /* -------------------------------------------------------------
+       TOAST ALERTS
+       ------------------------------------------------------------- */
+    .toast-container {
+      position: absolute;
+      bottom: 24px;
+      right: 24px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .toast {
+      background: var(--bg-tertiary);
+      border-left: 3px solid var(--accent-cyan);
+      border-radius: var(--radius-sm);
+      padding: 12px 20px;
+      color: var(--text-primary);
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: var(--shadow-md);
+      pointer-events: auto;
+      transform: translateY(20px);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+    
+    <!-- SIDEBAR WITH SEARCH & LIST -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="app-logo">
+          <div class="logo-icon">
+            <!-- Compass navigation icon -->
+            <svg viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+              <path d="M938.666667 512c0 235.648-191.018667 426.666667-426.666667 426.666667S85.333333 747.648 85.333333 512 276.352 85.333333 512 85.333333s426.666667 191.018667 426.666667 426.666667" fill="#2196F3" />
+              <path d="M853.333333 512c0 188.522667-152.810667 341.333333-341.333333 341.333333S170.666667 700.522667 170.666667 512 323.477333 170.666667 512 170.666667s341.333333 152.810667 341.333333 341.333333" fill="#EEEEEE" />
+              <path d="M512 213.333333l-42.666667 298.666667 42.666667 298.666667 42.666667-298.666667z" fill="#90A4AE" />
+              <path d="M300.821333 300.821333l181.013334 241.344 241.344 181.013334-181.013334-241.344z" fill="#90A4AE" />
+              <path d="M213.333333 512l298.666667 42.666667 298.666667-42.666667-298.645334-42.666667z" fill="#90A4AE" />
+              <path d="M300.821333 723.178667l256.426667-165.930667-90.496-90.496z" fill="#3F51B5" />
+              <path d="M466.752 466.752l90.496 90.496 165.930667-256.426667z" fill="#FF3D00" />
+              <path d="M544 512a32 32 0 1 1-63.978667 0.021333A32 32 0 0 1 544 512" fill="#FFFFFF" />
+            </svg>
+          </div>
+          <span class="logo-text">CipherTrust API Explorer</span>
+        </div>
+        
+        <div class="search-container">
+          <svg class="search-icon" viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <input type="text" id="searchInput" class="search-input" placeholder="Search path, description, tags...">
+        </div>
+        
+        <div class="filter-section">
+          <div class="method-filters">
+            <button class="filter-btn" data-method="GET">GET</button>
+            <button class="filter-btn" data-method="POST">POST</button>
+            <button class="filter-btn" data-method="PUT">PUT</button>
+            <button class="filter-btn" data-method="PATCH">PATCH</button>
+            <button class="filter-btn" data-method="DELETE">DELETE</button>
+          </div>
+          
+          <div class="tag-filter-container">
+            <select id="tagSelect" class="tag-select">
+              <option value="">All Tags</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      
+      <div class="results-count" id="resultsCount">0 Endpoints</div>
+      
+      <div class="results-list" id="resultsList">
+        <!-- Live rendered search items -->
+      </div>
+    </aside>
+    
+    <!-- MAIN DETAIL CONTENT -->
+    <main class="main-content">
+      
+      <!-- Welcome Empty State -->
+      <div class="welcome-container" id="welcomePane">
+        <div class="welcome-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <line x1="12" y1="22.08" x2="12" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <h1 class="welcome-title">CipherTrust API Explorer</h1>
+        <p class="welcome-text">Select an endpoint in the sidebar to view query parameters, POST request body schemas, and HTTP response structures.</p>
+        
+        <div class="welcome-features">
+          <div class="feature-card">
+            <span class="feature-card-title">Fuzzy Search</span>
+            <span class="feature-card-desc">Instantly filters 1,208 endpoints.</span>
+          </div>
+          <div class="feature-card">
+            <span class="feature-card-title">Interactive Trees</span>
+            <span class="feature-card-desc">Expand nested body schemas.</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- API Details Pane -->
+      <div class="details-pane" id="detailsPane" style="display: none;">
+        
+        <!-- Header -->
+        <div class="details-header" id="detailsHeader">
+          <div class="details-meta">
+            <span class="method-badge" id="detailsMethod">GET</span>
+            <div class="details-path-box">
+              <span class="details-path-text" id="detailsPath">/v1/auth/tokens</span>
+              <button class="copy-btn" id="copyPathBtn" title="Copy endpoint path">
+                <svg viewBox="0 0 24 24">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <h2 class="details-summary" id="detailsSummary">Acquire Authentication Token</h2>
+          <p class="details-desc" id="detailsDesc">Authenticate a client or user and retrieve a fresh JWT token to authorize subsequent API operations.</p>
+          <div class="details-tags-list" id="detailsTags">
+            <!-- Rendered tags -->
+          </div>
+        </div>
+        
+        <!-- Resizer Splitter -->
+        <div class="pane-resizer" id="paneResizer"></div>
+        
+        <!-- Bottom Tabbed Section -->
+        <div class="details-body" id="detailsBody">
+          <!-- Tab Navigation Bar -->
+        <div class="tabs-bar">
+          <div class="tab-item active" data-tab="parameters">Parameters <span class="tab-item-badge" id="badgeCountParams">0</span></div>
+          <div class="tab-item" data-tab="body">Request Body <span class="tab-item-badge" id="badgeCountBody">0</span></div>
+          <div class="tab-item" data-tab="responses">Responses <span class="tab-item-badge" id="badgeCountResponses">0</span></div>
+          <div class="tab-item" data-tab="ksctl">KSCTL CLI <span class="tab-item-badge" id="badgeCountKsctl">0</span></div>
+        </div>
+        
+        <!-- Tab Contents Area -->
+        <div class="tab-content-container">
+          
+          <!-- Parameters Tab -->
+          <div class="tab-pane active" id="paneParameters">
+            <table class="premium-table" id="paramsTable">
+              <thead>
+                <tr>
+                  <th style="width: 25%">Parameter</th>
+                  <th style="width: 15%">Source</th>
+                  <th style="width: 20%">Type</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody id="paramsTableBody">
+                <!-- Live parameters row injection -->
+              </tbody>
+            </table>
+            <div class="empty-tab-state" id="emptyParamsState" style="display: none;">
+              <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                <line x1="12" y1="8" x2="12" y2="12" stroke="currentColor" stroke-width="2"/>
+                <line x1="12" y1="16" x2="12.01" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <span>No request parameters required for this endpoint.</span>
+            </div>
+          </div>
+          
+          <!-- Request Body Schema Tab -->
+          <div class="tab-pane" id="paneBody">
+            <div class="body-tab-layout" id="bodyTabLayout">
+              <!-- Left side: Interactive tree-table of Schema -->
+              <div class="schema-tree-pane">
+                <div class="schema-header">
+                  <div>Field Name</div>
+                  <div>Type</div>
+                  <div>Required</div>
+                  <div>Description</div>
+                </div>
+                <div class="schema-rows-container" id="schemaRowsBody">
+                  <!-- Schema rows injected here -->
+                </div>
+              </div>
+              
+              <!-- Right side: Auto generated copyable payload -->
+              <div class="mock-payload-pane">
+                <div class="mock-pane-header">
+                  <span class="mock-pane-title">Simulated Request JSON</span>
+                  <button class="copy-btn" id="copyMockBtn" title="Copy simulated JSON payload">
+                    <svg viewBox="0 0 24 24">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                  </button>
+                </div>
+                <pre class="mock-code-container"><code id="mockPayloadCode"></code></pre>
+              </div>
+            </div>
+            
+            <div class="empty-tab-state" id="emptyBodyState" style="display: none;">
+              <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                <line x1="12" y1="8" x2="12" y2="12" stroke="currentColor" stroke-width="2"/>
+                <line x1="12" y1="16" x2="12.01" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <span>This endpoint does not require a request body.</span>
+            </div>
+          </div>
+          
+          <!-- Responses Tab -->
+          <div class="tab-pane" id="paneResponses">
+            <div class="responses-container" id="responsesListContainer">
+              <!-- Responses dynamic cards -->
+            </div>
+          </div>
+          
+          <!-- KSCTL CLI Tab -->
+          <div class="tab-pane" id="paneKsctl">
+            <div class="body-tab-layout" id="ksctlTabLayout">
+              <!-- Left side: CLI Command Details & Synopsis -->
+              <div class="schema-tree-pane" style="flex: 6; padding: 24px; overflow-y: auto;">
+                <h3 id="ksctlCmdName" style="font-family: var(--font-mono); color: var(--accent-cyan); margin-bottom: 16px;">ksctl command</h3>
+                
+                <div class="response-body-title" style="margin-top: 20px;">Synopsis</div>
+                <p id="ksctlCmdSynopsis" style="font-size: 14px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 24px; white-space: pre-wrap;"></p>
+                
+                <div class="response-body-title">Command Options</div>
+                <pre class="mock-code-container" style="background: rgba(0,0,0,0.15); border: 1px solid var(--border-glass); border-radius: var(--radius-sm); margin-top: 10px; max-height: 350px; overflow-y: auto;"><code id="ksctlCmdOptions" style="color: var(--text-primary); font-size: 13px;"></code></pre>
+              </div>
+              
+              <!-- Right side: Reference & Examples -->
+              <div class="mock-payload-pane" style="flex: 6;">
+                <div class="mock-pane-header">
+                  <span class="mock-pane-title">KSCTL Reference & Examples</span>
+                  <button class="copy-btn" id="copyKsctlBtn" title="Copy CLI Command example">
+                    <svg viewBox="0 0 24 24">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                  </button>
+                </div>
+                <div class="mock-code-container" style="background: #05070c; overflow-y: auto; height: calc(100% - 40px); padding: 20px;">
+                  <pre><code id="ksctlCmdExamples" style="color: var(--color-post); font-size: 13px; line-height: 1.6; white-space: pre-wrap;"></code></pre>
+                </div>
+              </div>
+            </div>
+            
+            <div class="empty-tab-state" id="emptyKsctlState" style="display: none;">
+              <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                <line x1="12" y1="8" x2="12" y2="12" stroke="currentColor" stroke-width="2"/>
+                <line x1="12" y1="16" x2="12.01" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <span>No corresponding KSCTL CLI command found for this API endpoint.</span>
+            </div>
+          </div>
+          
+        </div>
+      </div> <!-- Closes .details-body -->
+      </div> <!-- Closes .details-pane -->
+    </main>
+    
+  </div>
+
+  <!-- LOADING OVERLAY -->
+  <div class="overlay" id="loadingOverlay">
+    <div class="spinner-ring"></div>
+    <span class="overlay-text" id="loadingText">Loading CipherTrust API Schema...</span>
+  </div>
+
+  <!-- DRAG AND DROP IMPORT SCREEN OVERLAY -->
+  <div class="overlay hidden" id="dropOverlay">
+    <div class="dropzone-container" id="dropzone">
+      <div class="dropzone-icon">
+        <svg viewBox="0 0 24 24">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <polyline points="17 8 12 3 7 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h2 class="dropzone-title">Import CipherTrust API & CLI Definitions</h2>
+      <p class="dropzone-desc">Browser security policies block reading files directly via <code>file://</code> URLs.<br>Drag and drop both <strong>ciphertrust-api.json</strong> and <strong>ksctl_for_embedding.jsonl</strong> here to explore.</p>
+      <button class="browse-btn" id="browseBtn">Browse Local Files</button>
+      <input type="file" id="fileInput" class="hidden-file-input" accept=".json,.jsonl" multiple>
+    </div>
+  </div>
+
+  <!-- TOAST ALERTS CONTAINER -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- -------------------------------------------------------------
+       APPLICATION SCRIPT
+       ------------------------------------------------------------- -->
+  <script>
+    // Global Application State
+    const App = {
+      data: null,
+      endpoints: [],
+      tags: [],
+      definitions: {},
+      ksctlCommands: {}, // Grouped CLI commands
+      
+      // Pending state for manual file uploads
+      pendingApiData: null,
+      pendingKsctlData: null,
+      
+      // Filters state
+      searchQuery: '',
+      selectedMethods: new Set(),
+      selectedTag: '',
+      
+      // Current active selection
+      selectedEndpoint: null
+    };
+
+    // DOM Elements Cache
+    const el = {
+      loadingOverlay: document.getElementById('loadingOverlay'),
+      loadingText: document.getElementById('loadingText'),
+      dropOverlay: document.getElementById('dropOverlay'),
+      dropzone: document.getElementById('dropzone'),
+      fileInput: document.getElementById('fileInput'),
+      browseBtn: document.getElementById('browseBtn'),
+      
+      searchInput: document.getElementById('searchInput'),
+      tagSelect: document.getElementById('tagSelect'),
+      resultsCount: document.getElementById('resultsCount'),
+      resultsList: document.getElementById('resultsList'),
+      methodBtns: document.querySelectorAll('.filter-btn'),
+      
+      welcomePane: document.getElementById('welcomePane'),
+      detailsPane: document.getElementById('detailsPane'),
+      
+      detailsMethod: document.getElementById('detailsMethod'),
+      detailsPath: document.getElementById('detailsPath'),
+      detailsSummary: document.getElementById('detailsSummary'),
+      detailsDesc: document.getElementById('detailsDesc'),
+      detailsTags: document.getElementById('detailsTags'),
+      
+      tabItems: document.querySelectorAll('.tab-item'),
+      tabPanes: document.querySelectorAll('.tab-pane'),
+      
+      badgeCountParams: document.getElementById('badgeCountParams'),
+      badgeCountBody: document.getElementById('badgeCountBody'),
+      badgeCountResponses: document.getElementById('badgeCountResponses'),
+      
+      paramsTable: document.getElementById('paramsTable'),
+      paramsTableBody: document.getElementById('paramsTableBody'),
+      emptyParamsState: document.getElementById('emptyParamsState'),
+      
+      bodyTabLayout: document.getElementById('bodyTabLayout'),
+      schemaRowsBody: document.getElementById('schemaRowsBody'),
+      mockPayloadCode: document.getElementById('mockPayloadCode'),
+      emptyBodyState: document.getElementById('emptyBodyState'),
+      
+      responsesListContainer: document.getElementById('responsesListContainer'),
+      
+      copyPathBtn: document.getElementById('copyPathBtn'),
+      copyMockBtn: document.getElementById('copyMockBtn'),
+      toastContainer: document.getElementById('toastContainer'),
+      
+      // KSCTL CLI additions
+      badgeCountKsctl: document.getElementById('badgeCountKsctl'),
+      ksctlTabLayout: document.getElementById('ksctlTabLayout'),
+      ksctlCmdName: document.getElementById('ksctlCmdName'),
+      ksctlCmdSynopsis: document.getElementById('ksctlCmdSynopsis'),
+      ksctlCmdOptions: document.getElementById('ksctlCmdOptions'),
+      ksctlCmdExamples: document.getElementById('ksctlCmdExamples'),
+      emptyKsctlState: document.getElementById('emptyKsctlState'),
+      copyKsctlBtn: document.getElementById('copyKsctlBtn')
+    };
+
+    // -------------------------------------------------------------
+    // TOAST SYSTEM
+    // -------------------------------------------------------------
+    function showToast(message) {
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.innerText = message;
+      el.toastContainer.appendChild(toast);
+      
+      // Trigger show transition
+      setTimeout(() => toast.classList.add('show'), 10);
+      
+      // Auto remove after 3s
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    // -------------------------------------------------------------
+    // LOAD & INITIALIZE APPLICATION STATE
+    // -------------------------------------------------------------
+    window.addEventListener('DOMContentLoaded', () => {
+      // Step 1: Attempt auto fetch of both files
+      el.loadingText.innerText = "Attempting to auto-fetch API spec and CLI mapping...";
+      
+      Promise.all([
+        fetch('ciphertrust-api-2_22.json').then(res => {
+          if (!res.ok) throw new Error("ciphertrust-api-2_22.json not found");
+          return res.json();
+        }),
+        fetch('ksctl_for_embedding.jsonl').then(res => {
+          if (!res.ok) throw new Error("ksctl_for_embedding.jsonl not found");
+          return res.text();
+        })
+      ])
+      .then(([apiData, ksctlData]) => {
+        initApplication(apiData, ksctlData);
+      })
+      .catch(err => {
+        // Fetch failed (e.g. file:// URL or not found)
+        console.warn("Auto-fetch failed, showing Drag-and-Drop overlay:", err.message);
+        el.loadingOverlay.classList.add('hidden');
+        el.dropOverlay.classList.remove('hidden');
+      });
+        
+      setupUploadListeners();
+      setupInteractiveListeners();
+    });
+
+    // -------------------------------------------------------------
+    // SETUP MANUAL DROP/UPLOAD LISTENERS
+    // -------------------------------------------------------------
+    function setupUploadListeners() {
+      // Trigger browse input
+      el.browseBtn.addEventListener('click', () => el.fileInput.click());
+      
+      el.fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+          Array.from(e.target.files).forEach(file => loadSelectedFile(file));
+        }
+      });
+
+      // Drag and drop events
+      ['dragenter', 'dragover'].forEach(eventName => {
+        el.dropzone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          el.dropzone.classList.add('dragover');
+        }, false);
+      });
+
+      ['dragleave', 'drop'].forEach(eventName => {
+        el.dropzone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          el.dropzone.classList.remove('dragover');
+        }, false);
+      });
+
+      el.dropzone.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        if (files.length > 0) {
+          Array.from(files).forEach(file => loadSelectedFile(file));
+        }
+      }, false);
+    }
+
+    function loadSelectedFile(file) {
+      if (file.name.endsWith('.json')) {
+        el.loadingOverlay.classList.remove('hidden');
+        el.loadingText.innerText = `Reading API file: ${file.name}...`;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            App.pendingApiData = JSON.parse(e.target.result);
+            checkAndInitDroppedFiles();
+          } catch (err) {
+            el.loadingOverlay.classList.add('hidden');
+            alert("JSON Parse Error: Make sure this is a valid OpenAPI JSON schema file.");
+          }
+        };
+        reader.readAsText(file);
+      } else if (file.name.endsWith('.jsonl')) {
+        el.loadingOverlay.classList.remove('hidden');
+        el.loadingText.innerText = `Reading CLI reference file: ${file.name}...`;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            App.pendingKsctlData = e.target.result;
+            checkAndInitDroppedFiles();
+          } catch (err) {
+            el.loadingOverlay.classList.add('hidden');
+            alert("File read error: Make sure this is a valid JSONL file.");
+          }
+        };
+        reader.readAsText(file);
+      } else {
+        showToast("Please import a valid .json or .jsonl file.");
+      }
+    }
+
+    function checkAndInitDroppedFiles() {
+      if (App.pendingApiData && App.pendingKsctlData) {
+        el.dropOverlay.classList.add('hidden');
+        initApplication(App.pendingApiData, App.pendingKsctlData);
+        App.pendingApiData = null;
+        App.pendingKsctlData = null;
+      } else {
+        el.loadingOverlay.classList.add('hidden');
+        el.dropOverlay.classList.remove('hidden');
+        if (App.pendingApiData && !App.pendingKsctlData) {
+          showToast("API schema loaded. Now please drag/select ksctl_for_embedding.jsonl!");
+        } else if (!App.pendingApiData && App.pendingKsctlData) {
+          showToast("CLI reference loaded. Now please drag/select ciphertrust-api-2_22.json!");
+        }
+      }
+    }
+
+    // -------------------------------------------------------------
+    // DEREFERENCING & DATA PARSING PIPELINE
+    // -------------------------------------------------------------
+    function initApplication(jsonData, ksctlRawText) {
+      el.loadingText.innerText = "Indexing 1,208 endpoints & definitions...";
+      
+      App.data = jsonData;
+      App.definitions = jsonData.definitions || {};
+      App.endpoints = [];
+      const uniqueTags = new Set();
+      
+      // Parse KSCTL JSONL reference
+      App.ksctlCommands = {};
+      if (ksctlRawText) {
+        const lines = ksctlRawText.trim().split('\n');
+        lines.forEach(line => {
+          if (!line.trim()) return;
+          try {
+            const entry = JSON.parse(line);
+            const cmdKey = entry.p.join(' ');
+            if (!App.ksctlCommands[cmdKey]) {
+              App.ksctlCommands[cmdKey] = [];
+            }
+            App.ksctlCommands[cmdKey].push(entry);
+          } catch (err) {
+            console.error("Failed to parse JSONL line:", line, err);
+          }
+        });
+      }
+
+      const paths = jsonData.paths || {};
+      for (const [pathKey, pathItem] of Object.entries(paths)) {
+        for (const [method, opData] of Object.entries(pathItem)) {
+          const m = method.toLowerCase();
+          if (!['get', 'post', 'put', 'delete', 'patch'].includes(m)) continue;
+
+          const endpoint = {
+            path: pathKey,
+            method: method.toUpperCase(),
+            summary: opData.summary || opData.description || "No summary provided",
+            description: opData.description || "",
+            tags: opData.tags || [],
+            parameters: opData.parameters || [],
+            responses: opData.responses || {},
+            operationId: opData.operationId || `${m}_${pathKey}`
+          };
+
+          App.endpoints.push(endpoint);
+          endpoint.tags.forEach(t => uniqueTags.add(t));
+        }
+      }
+
+      App.tags = Array.from(uniqueTags).sort();
+      
+      // Populate Tag filter dropdown
+      el.tagSelect.innerHTML = '<option value="">All Tags</option>';
+      App.tags.forEach(tag => {
+        const option = document.createElement('option');
+        option.value = tag;
+        option.innerText = tag;
+        el.tagSelect.appendChild(option);
+      });
+
+      // Complete loading
+      setTimeout(() => {
+        el.loadingOverlay.classList.add('hidden');
+        renderSidebar();
+        showToast(`Parsed ${App.endpoints.length} endpoints successfully.`);
+      }, 300);
+    }
+
+    // -------------------------------------------------------------
+    // FUZZY SEARCH ENGINE
+    // -------------------------------------------------------------
+    let searchDebounceTimer;
+    
+    function triggerFilteredSearch() {
+      clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = setTimeout(() => {
+        renderSidebar();
+      }, 150);
+    }
+
+    function searchEndpoints(query, activeMethods, activeTag) {
+      const tokens = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
+      
+      const results = [];
+      for (const ep of App.endpoints) {
+        // Filter: HTTP Methods (if selected)
+        if (activeMethods.size > 0 && !activeMethods.has(ep.method)) continue;
+        
+        // Filter: Selected Tag
+        if (activeTag && !ep.tags.includes(activeTag)) continue;
+        
+        if (tokens.length === 0) {
+          results.push({ ep, score: 1 });
+          continue;
+        }
+        
+        let score = 0;
+        let allTokensMatch = true;
+        
+        for (const token of tokens) {
+          let tokenScore = 0;
+          
+          if (ep.path.toLowerCase().includes(token)) {
+            tokenScore += 10;
+            if (ep.path.toLowerCase().startsWith(token)) tokenScore += 5;
+          }
+          if (ep.summary.toLowerCase().includes(token)) tokenScore += 5;
+          if (ep.description.toLowerCase().includes(token)) tokenScore += 3;
+          if (ep.tags.some(t => t.toLowerCase().includes(token))) tokenScore += 4;
+          
+          if (tokenScore === 0) {
+            allTokensMatch = false;
+            break;
+          }
+          score += tokenScore;
+        }
+        
+        if (allTokensMatch) {
+          results.push({ ep, score });
+        }
+      }
+      
+      // Sort descending by relevance score
+      results.sort((a, b) => b.score - a.score);
+      return results.map(r => r.ep);
+    }
+
+    function highlightMatchText(text, query) {
+      if (!query) return text;
+      const tokens = query.trim().split(/\s+/).filter(Boolean);
+      if (tokens.length === 0) return text;
+      
+      const sortedTokens = [...tokens].sort((a, b) => b.length - a.length);
+      let placeholders = [];
+      let tempText = text;
+      
+      for (let i = 0; i < sortedTokens.length; i++) {
+        const token = sortedTokens[i];
+        const escToken = token.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        const regex = new RegExp(`(${escToken})`, 'gi');
+        
+        tempText = tempText.replace(regex, (match) => {
+          const placeholder = `___HL_${placeholders.length}___`;
+          placeholders.push({ placeholder, html: `<span class="search-highlight">${match}</span>` });
+          return placeholder;
+        });
+      }
+      
+      for (const ph of placeholders) {
+        tempText = tempText.replace(ph.placeholder, ph.html);
+      }
+      
+      return tempText;
+    }
+
+    // -------------------------------------------------------------
+    // RENDER SIDEBAR LIST (VIRTUALIZED AND GROUPED BY TAG)
+    // -------------------------------------------------------------
+    function renderSidebar() {
+      const filtered = searchEndpoints(App.searchQuery, App.selectedMethods, App.selectedTag);
+      el.resultsCount.innerText = `${filtered.length} Endpoints`;
+      
+      el.resultsList.innerHTML = '';
+      
+      if (filtered.length === 0) {
+        el.resultsList.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 40px 10px; font-size: 13px;">No endpoints match search criteria.</div>';
+        return;
+      }
+      
+      // Group by Tag
+      const groups = {};
+      filtered.forEach(ep => {
+        const tag = ep.tags[0] || 'Uncategorized';
+        if (!groups[tag]) {
+          groups[tag] = [];
+        }
+        groups[tag].push(ep);
+      });
+      
+      // Sort Tag Keys Alphabetically
+      const sortedTags = Object.keys(groups).sort((a, b) => a.localeCompare(b));
+      
+      const fragment = document.createDocumentFragment();
+      const isSearching = App.searchQuery.trim().length > 0 || App.selectedMethods.size > 0 || App.selectedTag !== '';
+      
+      sortedTags.forEach(tag => {
+        const tagEndpoints = groups[tag];
+        
+        // Sort endpoints alphabetically by path within this tag group
+        tagEndpoints.sort((a, b) => a.path.localeCompare(b.path));
+        
+        // Check if this group contains the active selected endpoint
+        const hasActiveSelected = App.selectedEndpoint && tagEndpoints.some(ep => ep.operationId === App.selectedEndpoint.operationId);
+        
+        // Group should be expanded if searching, or if it contains the selected endpoint
+        const isCollapsed = !isSearching && !hasActiveSelected;
+        
+        // Create Tag Header
+        const header = document.createElement('div');
+        header.className = 'tag-group-header';
+        
+        const toggleClass = isCollapsed ? 'tag-group-toggle collapsed' : 'tag-group-toggle';
+        header.innerHTML = `
+          <span class="${toggleClass}">▼</span>
+          <span class="tag-group-title" title="${tag}">${tag}</span>
+          <span class="tag-group-count">${tagEndpoints.length}</span>
+        `;
+        
+        // Create Tag Content Container
+        const content = document.createElement('div');
+        content.className = isCollapsed ? 'tag-group-content collapsed' : 'tag-group-content';
+        
+        tagEndpoints.forEach(ep => {
+          const activeClass = App.selectedEndpoint && App.selectedEndpoint.operationId === ep.operationId ? ' active' : '';
+          const item = document.createElement('div');
+          item.className = `endpoint-item${activeClass}`;
+          item.dataset.opid = ep.operationId;
+          
+          const highlightedPath = highlightMatchText(ep.path, App.searchQuery);
+          
+          item.innerHTML = `
+            <div class="endpoint-item-meta">
+              <span class="method-badge ${ep.method.toLowerCase()}">${ep.method}</span>
+              <span class="endpoint-path" title="${ep.path}">${highlightedPath}</span>
+            </div>
+            <div class="endpoint-summary" title="${ep.summary}">${ep.summary}</div>
+          `;
+          
+          item.addEventListener('click', () => selectEndpoint(ep));
+          content.appendChild(item);
+        });
+        
+        // Header Click Event to toggle expand/collapse
+        header.addEventListener('click', () => {
+          const toggleIcon = header.querySelector('.tag-group-toggle');
+          toggleIcon.classList.toggle('collapsed');
+          content.classList.toggle('collapsed');
+        });
+        
+        fragment.appendChild(header);
+        fragment.appendChild(content);
+      });
+      
+      el.resultsList.appendChild(fragment);
+    }
+
+    // -------------------------------------------------------------
+    // ROUTING AND SELECTION STATE
+    // -------------------------------------------------------------
+    // -------------------------------------------------------------
+    // KSCTL CLI MAPPING ENGINE & RENDERING
+    // -------------------------------------------------------------
+    const CLI_PREFIX_MAP = {
+      'cte': 'transparent-encryption',
+      'pf': 'protectfile',
+      'pdb': 'protectdb'
+    };
+
+    function normalizeStringToken(t) {
+      t = t.toLowerCase();
+      
+      // Custom domain mapping translations to align API and CLI namespaces
+      if (t === 'protectdb' || t === 'protectdbs') return 'dataprotection';
+      if (t === 'client-management') return 'clientmgmt';
+      if (t === 'nodes' || t === 'node') return 'cluster';
+      if (t === 'connection-test') return 'connections';
+      if (t === 'domain-syslog-redirection') return 'syslog';
+      
+      const mapped = CLI_PREFIX_MAP[t] || t;
+      let clean = mapped.replace(/[^a-z0-9]/g, '');
+      
+      // Standard plural-to-singular normalizations
+      if (clean.endsWith('policies')) clean = clean.replace(/policies$/, 'policy');
+      if (clean.endsWith('keys')) clean = clean.replace(/keys$/, 'key');
+      if (clean.endsWith('users')) clean = clean.replace(/users$/, 'user');
+      if (clean.endsWith('groups')) clean = clean.replace(/groups$/, 'group');
+      if (clean.endsWith('backups')) clean = clean.replace(/backups$/, 'backup');
+      if (clean.endsWith('databases')) clean = clean.replace(/databases$/, 'database');
+      if (clean.endsWith('alarms')) clean = clean.replace(/alarms$/, 'alarm');
+      if (clean.endsWith('alarmconfigs')) clean = clean.replace(/alarmconfigs$/, 'alarm');
+      
+      return clean;
+    }
+
+    function getApiPathTokens(apiPath) {
+      return apiPath.split('/')
+        .filter(Boolean)
+        .filter(t => !t.startsWith('{') && !t.endsWith('}'))
+        .filter(t => !/^v\d+$/.test(t))
+        .map(normalizeStringToken)
+        .filter(Boolean);
+    }
+
+    function getCliPathTokens(cmdPath) {
+      return cmdPath.slice(1)
+        .map(normalizeStringToken)
+        .filter(Boolean);
+    }
+
+    function calculateMatchScore(apiPath, method, cliPath) {
+      const cliTokens = getCliPathTokens(cliPath);
+      const apiTokens = getApiPathTokens(apiPath);
+      
+      const action = cliPath[cliPath.length - 1].toLowerCase();
+      let preferredMethods = [];
+      
+      if (['create', 'add', 'post', 'run'].includes(action)) {
+        preferredMethods = ['POST'];
+      } else if (['modify', 'update', 'patch'].includes(action)) {
+        preferredMethods = ['PATCH', 'PUT'];
+      } else if (['delete', 'remove', 'destroy'].includes(action)) {
+        preferredMethods = ['DELETE'];
+      } else if (['get', 'list', 'show', 'view'].includes(action)) {
+        preferredMethods = ['GET'];
+      }
+
+      let matches = 0;
+      let lastIdx = -1;
+      let orderedMatches = 0;
+      
+      cliTokens.forEach(cliTok => {
+        const idx = apiTokens.indexOf(cliTok);
+        if (idx !== -1) {
+          matches++;
+          if (idx > lastIdx) {
+            orderedMatches++;
+            lastIdx = idx;
+          }
+        }
+      });
+
+      let score = 0;
+      score += matches * 30;
+      score += orderedMatches * 15;
+      
+      const tokenDiff = Math.abs(apiTokens.length - cliTokens.length);
+      score -= tokenDiff * 5;
+      
+      // Penalty for unmatched tokens in the CLI command to avoid spurious domain matches
+      let unmatched = 0;
+      cliTokens.forEach(cliTok => {
+        if (!apiTokens.includes(cliTok)) {
+          unmatched++;
+        }
+      });
+      score -= unmatched * 15;
+      
+      if (preferredMethods.includes(method)) {
+        score += 25;
+      } else if (preferredMethods.length > 0) {
+        score -= 15;
+      }
+      
+      // Collection vs Resource GET heuristics
+      if (method === 'GET') {
+        const isResourcePath = apiPath.endsWith('}');
+        if (isResourcePath) {
+          if (action === 'get' || action === 'show') score += 15;
+          if (action === 'list') score -= 15;
+        } else {
+          if (action === 'list') score += 15;
+          if (action === 'get' || action === 'show') score -= 15;
+        }
+      }
+      
+      if (action === 'create' && method === 'POST') score += 10;
+      if (action === 'add' && method === 'POST') score += 10;
+      if (action === 'modify' && method === 'PATCH') score += 10;
+      if (action === 'delete' && method === 'DELETE') score += 10;
+      if (action === 'get' && method === 'GET') score += 10;
+      if (action === 'list' && method === 'GET') score += 10;
+      
+      return matches > 0 ? score : 0;
+    }
+
+    // Explicit overrides generated from UNMAPPED_ENDPOINTS.md
+        const KSCTL_EXPLICIT_MAP = {
+      "DELETE /v1/admin/policy-attachments/{id}": "ksctl policy",
+      "DELETE /v1/audit/alarm-configs/{id}": "ksctl alarms",
+      "DELETE /v1/ca/external-cas/{id}": "ksctl ca",
+      "DELETE /v1/ca/local-cas/{id}": "ksctl ca",
+      "DELETE /v1/client-management/regtokens/{id}": "ksctl clientmgmt",
+      "DELETE /v1/configs/syslogs/{id}": "ksctl syslog",
+      "DELETE /v1/ddc/classification-profiles/{id}": "ksctl ddc",
+      "DELETE /v1/ddc/clean-resources/targets": "ksctl ddc",
+      "DELETE /v1/ddc/config-profiles/{id}": "ksctl ddc",
+      "DELETE /v1/ddc/datastores/{id}": "ksctl ddc",
+      "DELETE /v1/ddc/report-template/{id}": "ksctl ddc",
+      "DELETE /v1/ddc/scans/{id}": "ksctl ddc",
+      "DELETE /v1/ddc/similarity-searches/{id}": "ksctl ddc",
+      "DELETE /v1/ddc/system-settings/fam": "ksctl ddc",
+      "DELETE /v1/notification/email-addresses/{id}": "ksctl notification",
+      "DELETE /v1/protectapp/clients/{name}": "ksctl protectapp",
+      "DELETE /v1/protectdb/databases/{id}": "ksctl data-protection",
+      "DELETE /v1/protectdb/databases/{id}/deleteData": "use pdbctl utility",
+      "DELETE /v1/protectdb/databases/{id}/domainIndex": "use pdbctl utility",
+      "DELETE /v1/protectfile/clusters/{id}": "ksctl cluster",
+      "DELETE /v1/quorum-mgmt/quorums/{id}": "ksctl quorum",
+      "DELETE /v1/scheduler/job-configs/{id}": "ksctl scheduler",
+      "DELETE /v1/snmp/management-stations/{id}": "ksctl snmp",
+      "DELETE /v1/transparent-encryption/compatibility-matrix": "ksctl cte",
+      "DELETE /v1/transparent-encryption/csigroups/{id}": "ksctl cte",
+      "DELETE /v1/transparent-encryption/ldtgroupcommservice/{id}": "ksctl cte",
+      "DELETE /v1/trusted-cas/{id}": "ksctl trusted-ca-cert",
+      "DELETE /v1/usermgmt/pwdpolicies/{policy_name}": "ksctl users",
+      "DELETE /v1/vault/keys2/{id}": "ksctl keys",
+      "GET /v1/admin/policy-attachments/": "ksctl policy",
+      "GET /v1/admin/policy-attachments/{id}": "ksctl policy",
+      "GET /v1/auth/auth-key": "ksctl tokens",
+      "GET /v1/auth/banners/post-auth": "ksctl banners",
+      "GET /v1/auth/banners/pre-auth": "ksctl banners",
+      "GET /v1/auth/jwks.json": "ksctl tokens",
+      "GET /v1/auth/self/user": "ksctl users get",
+      "GET /v1/backupStatus": "ksctl backup",
+      "GET /v1/backups/{id}/scp-status/{scp_id}": "ksctl backup status scp",
+      "GET /v1/ddc/agents/{id}": "ksctl ddc",
+      "GET /v1/ddc/classification-profiles/{id}": "ksctl ddc",
+      "GET /v1/ddc/clean-resources/targets/{processID}": "ksctl ddc",
+      "GET /v1/ddc/config-profiles/{id}": "ksctl ddc",
+      "GET /v1/ddc/datastores/browse-target-path/{processID}": "ksctl ddc",
+      "GET /v1/ddc/datastores/scanned": "web UI only",
+      "GET /v1/ddc/datastores/sensitive-percentage": "web UI only",
+      "GET /v1/ddc/datastores/{id}": "ksctl ddc",
+      "GET /v1/ddc/ml-agents/{id}": "ksctl ddc",
+      "GET /v1/ddc/report-template/{id}": "ksctl ddc",
+      "GET /v1/ddc/reports/{id}": "ksctl ddc",
+      "GET /v1/ddc/reports/{id}/infotypes/summary": "web UI only",
+      "GET /v1/ddc/reports/{id}/summary": "web UI only",
+      "GET /v1/ddc/retention-policy/executions": "web UI only",
+      "GET /v1/ddc/retention-policy/executions/{id}": "ksctl ddc",
+      "GET /v1/ddc/scan-trend-reports/{id}": "ksctl ddc",
+      "GET /v1/ddc/scan-trend-reports/{id}/data-objects/details/{scanExecutionId}": "web UI only",
+      "GET /v1/ddc/scans/executed-scans": "web UI only",
+      "GET /v1/ddc/scans/scan-executions/{id}/datastores-progress": "web UI only",
+      "GET /v1/ddc/scans/sensitive-scans": "web UI only",
+      "GET /v1/ddc/scans/{id}": "ksctl ddc",
+      "GET /v1/ddc/similarity-searches/{id}": "ksctl ddc",
+      "GET /v1/ddc/system-settings/fam": "web UI only",
+      "GET /v1/ddc/system-settings/infotypes/{id}": "ksctl ddc",
+      "GET /v1/ddc/system-settings/mlaas": "web UI only",
+      "GET /v1/ddc/system-settings/mlaas/status": "web UI only",
+      "GET /v1/ddc/system-settings/scans": "web UI only",
+      "GET /v1/ddc/system-settings/tdp/choice": "web UI only",
+      "GET /v1/ddc/system-settings/tdpaas": "web UI only",
+      "GET /v1/ddc/system-settings/tdpaas/regions": "web UI only",
+      "GET /v1/domain": "ksctl domains",
+      "GET /v1/logs/level/": "ksctl logs",
+      "GET /v1/protectdb/databases/request/{id}": "use pdbctl utility",
+      "GET /v1/protectdb/databases/{id}": "use pdbctl utility",
+      "GET /v1/protectdb/databases/{id}/column": "use pdbctl utility",
+      "GET /v1/protectdb/databases/{id}/dbusers": "use pdbctl utility",
+      "GET /v1/protectdb/databases/{id}/job-detail": "use pdbctl utility",
+      "GET /v1/protectdb/databases/{id}/table": "use pdbctl utility",
+      "GET /v1/quorum-mgmt/quorums": "ksctl quorum",
+      "GET /v1/quorum-mgmt/quorums/{id}": "ksctl quorum",
+      "GET /v1/quorum-mgmt/quorums/{id}/resources": "ksctl quorum",
+      "GET /v1/transparent-encryption/clientgroups/{clientGroupId}/guardpoints/{guardpointId}": "ksctl cte client-groups modify-guardpoints",
+      "GET /v1/transparent-encryption/compatibility-matrix": "ksctl cte clients upload-compatibility-matrix",
+      "GET /v1/transparent-encryption/csigroups/{id}": "ksctl cte csi k8s-storage-group get",
+      "GET /v1/trusted-cas/": "ksctl trusted-ca-cert",
+      "GET /v1/vault/key-labels/": "ksctl keys",
+      "GET /v1/vault/keys2/": "ksctl keys",
+      "GET /v1/vault/keys2/{id}": "ksctl keys",
+      "GET /v1/vault/keys2/{id}/versions/": "ksctl keys",
+      "GET /v1/vault/random": "ksctl random",
+      "PATCH /v1/audit/alarm-configs/{id}": "ksctl alarms",
+      "PATCH /v1/auth/changepw": "ksctl changepw",
+      "PATCH /v1/ca/external-cas/{id}": "ksctl ca",
+      "PATCH /v1/ca/local-cas/{id}": "ksctl ca",
+      "PATCH /v1/client-management/regtokens/{id}": "ksctl clientmgmt",
+      "PATCH /v1/configs/akeyless": "ksctl akeyless",
+      "PATCH /v1/configs/loki": "ksctl loki",
+      "PATCH /v1/configs/syslogs/{id}": "ksctl syslog",
+      "PATCH /v1/ddc/system-settings/infotypes/change-precision": "ksctl ddc",
+      "PATCH /v1/protectdb/databases/{id}": "ksctl data-protection",
+      "PATCH /v1/protectfile/clusters/{id}": "ksctl cluster",
+      "PATCH /v1/quorum-mgmt/profiles/{id}": "ksctl quorum",
+      "PATCH /v1/scheduler/job-configs/{id}": "ksctl scheduler",
+      "PATCH /v1/snmp/management-stations/{id}": "ksctl snmp",
+      "PATCH /v1/transparent-encryption/clientgroups/{clientGroupId}/guardpoints/unguard/": "ksctl cte client-groups modify-guardpoints",
+      "PATCH /v1/transparent-encryption/clientgroups/{clientGroupId}/guardpoints/{guardpointId}": "ksctl cte client-groups modify-guardpoints",
+      "PATCH /v1/transparent-encryption/clientgroups/{clientGroupId}/guardpoints/{guardpointId}/unguard": "ksctl cte client-groups unguard-guardpoints",
+      "PATCH /v1/transparent-encryption/csigroups/{id}": "ksctl cte",
+      "PATCH /v1/transparent-encryption/ldtgroupcommservice/{id}": "ksctl cte",
+      "PATCH /v1/usermgmt/groups/{name}": "ksctl groups",
+      "PATCH /v1/usermgmt/pwdpolicies/global": "ksctl users",
+      "PATCH /v1/usermgmt/pwdpolicies/{policy_name}": "ksctl users",
+      "PATCH /v1/vault/keys2/{id}": "ksctl keys",
+      "POST /v1/admin/policy-attachments/": "ksctl policy",
+      "POST /v1/audit/alarm-configs": "ksctl alarms",
+      "POST /v1/auth/id-providers/{id}/login": "ksctl id-providers",
+      "POST /v1/auth/logout": "ksctl logout",
+      "POST /v1/auth/oidc-callback": "ksctl connections",
+      "POST /v1/auth/revoke": "ksctl tokens",
+      "POST /v1/auth/rotate-auth-key": "ksctl tokens",
+      "POST /v1/auth/self/permissions": "ksctl policy",
+      "POST /v1/ca/external-cas": "ksctl ca",
+      "POST /v1/ca/local-cas": "ksctl ca",
+      "POST /v1/cckm/sap/add-groups": "ksctl cckm",
+      "POST /v1/cckm/sfdc/add-organizations": "ksctl cckm",
+      "POST /v1/client-management/regtokens/": "ksctl clientmgmt",
+      "POST /v1/configs/syslogs/": "ksctl syslog",
+      "POST /v1/connectionmgmt/services/luna-network/stc-partitions": "ksctl connectionmgmt",
+      "POST /v1/crypto/decryptonite": "ksctl crypto",
+      "POST /v1/crypto/encryptonite": "ksctl crypto",
+      "POST /v1/crypto/hash": "ksctl crypto",
+      "POST /v1/crypto/hide2": "ksctl crypto",
+      "POST /v1/crypto/mac": "ksctl crypto",
+      "POST /v1/crypto/macv": "ksctl crypto",
+      "POST /v1/crypto/signv": "ksctl crypto",
+      "POST /v1/crypto/unhide2": "ksctl crypto",
+      "POST /v1/ddc/classification-profiles": "ksctl ddc",
+      "POST /v1/ddc/classification-profiles/{id}/clone": "web UI only",
+      "POST /v1/ddc/config-profiles": "ksctl ddc",
+      "POST /v1/ddc/datastores": "ksctl ddc",
+      "POST /v1/ddc/report-template": "ksctl ddc",
+      "POST /v1/ddc/report-template/scan/aggregated": "ksctl ddc",
+      "POST /v1/ddc/report-template/scan/trend": "ksctl ddc",
+      "POST /v1/ddc/report-template/{id}/run": "web UI only",
+      "POST /v1/ddc/reports/{id}/dynamic/data-objects": "ksctl ddc",
+      "POST /v1/ddc/scans": "ksctl ddc",
+      "POST /v1/ddc/scans/validate-filter": "web UI only",
+      "POST /v1/ddc/scans/{id}/disable": "web UI only",
+      "POST /v1/ddc/scans/{id}/enable": "web UI only",
+      "POST /v1/ddc/scans/{id}/pause": "web UI only",
+      "POST /v1/ddc/scans/{id}/resume": "web UI only",
+      "POST /v1/ddc/scans/{id}/run_now": "web UI only",
+      "POST /v1/ddc/scans/{id}/stop": "web UI only",
+      "POST /v1/ddc/similarity-searches": "ksctl ddc",
+      "POST /v1/ddc/similarity-searches/{id}/run": "web UI only",
+      "POST /v1/ddc/system-settings/tdpaas": "web UI only",
+      "POST /v1/domain-syslog-redirection/disable": "ksctl syslog",
+      "POST /v1/domain-syslog-redirection/enable": "ksctl syslog",
+      "POST /v1/kmip/kmip-clients": "ksctl kmip",
+      "POST /v1/kmip/kmip-profiles": "ksctl kmip",
+      "POST /v1/kmip/regtokens/": "ksctl kmip",
+      "POST /v1/locker/diskenc/setup": "ksctl diskenc",
+      "POST /v1/logs/level/": "ksctl logs",
+      "POST /v1/notification/email-addresses": "ksctl notification",
+      "POST /v1/protectapp/clients": "ksctl protectapp",
+      "POST /v1/protectdb/databases": "ksctl data-protection",
+      "POST /v1/protectdb/databases/{id}/decrypt": "use pdbctl utility",
+      "POST /v1/protectdb/databases/{id}/domainIndex": "use pdbctl utility",
+      "POST /v1/protectdb/databases/{id}/encrypt": "use pdbctl utility",
+      "POST /v1/protectdb/databases/{id}/table/{name}/cancel-job": "ksctl data-protection",
+      "POST /v1/protectdb/databases/{id}/table/{name}/restore-job": "ksctl data-protection",
+      "POST /v1/protectdb/databases/{id}/table/{name}/resume-job": "ksctl data-protection",
+      "POST /v1/protectfile/clusters/": "ksctl cluster",
+      "POST /v1/quorum-mgmt/quorums/{id}/activate": "ksctl quorum",
+      "POST /v1/quorum-mgmt/quorums/{id}/approve": "ksctl quorum",
+      "POST /v1/quorum-mgmt/quorums/{id}/deny": "ksctl quorum",
+      "POST /v1/quorum-mgmt/quorums/{id}/revoke": "ksctl quorum",
+      "POST /v1/scheduler/job-configs": "ksctl scheduler",
+      "POST /v1/snmp/management-stations": "ksctl snmp",
+      "POST /v1/system/rotate-rot-keys": "ksctl system",
+      "POST /v1/transparent-encryption/compatibility-matrix": "ksctl cte",
+      "POST /v1/transparent-encryption/csigroups/": "ksctl cte",
+      "POST /v1/transparent-encryption/ldtgroupcommservice/": "ksctl cte",
+      "POST /v1/transparent-encryption/validatecosparams/": "ksctl cte",
+      "POST /v1/trusted-cas-create-many/": "ksctl trusted-ca-cert",
+      "POST /v1/trusted-cas/": "ksctl trusted-ca-cert",
+      "POST /v1/uploadBackup": "ksctl backup",
+      "POST /v1/usermgmt/pwdpolicies/": "ksctl users",
+      "POST /v1/vault/csr": "ksctl ca",
+      "POST /v1/vault/keys-bulk-export": "ksctl keys",
+      "POST /v1/vault/keys2/": "ksctl keys",
+      "POST /v1/vault/keys2/{id}/archive": "ksctl keys",
+      "POST /v1/vault/keys2/{id}/attributes": "ksctl keys",
+      "POST /v1/vault/keys2/{id}/clone": "ksctl keys",
+      "POST /v1/vault/keys2/{id}/destroy": "ksctl keys",
+      "POST /v1/vault/keys2/{id}/export": "ksctl keys",
+      "POST /v1/vault/keys2/{id}/generate-kcv": "ksctl keys",
+      "POST /v1/vault/keys2/{id}/reactivate": "ksctl keys",
+      "POST /v1/vault/keys2/{id}/recover": "ksctl keys",
+      "POST /v1/vault/keys2/{id}/revoke": "ksctl keys",
+      "POST /v1/vault/keys2/{id}/versions/": "ksctl keys",
+      "PUT /v1/ddc/agents/{id}": "ksctl ddc",
+      "PUT /v1/ddc/classification-profiles/{id}": "ksctl ddc",
+      "PUT /v1/ddc/config-profiles/{id}": "ksctl ddc",
+      "PUT /v1/ddc/datastores/amazon-s3/{id}": "ksctl ddc",
+      "PUT /v1/ddc/datastores/azure-blob/{id}": "ksctl ddc",
+      "PUT /v1/ddc/datastores/azure-table/{id}": "ksctl ddc",
+      "PUT /v1/ddc/datastores/exchange-server/{id}": "ksctl ddc",
+      "PUT /v1/ddc/datastores/google-drive/{id}": "ksctl ddc",
+      "PUT /v1/ddc/datastores/google-mail/{id}": "ksctl ddc",
+      "PUT /v1/ddc/datastores/hadoop-cluster/{id}": "ksctl ddc",
+      "PUT /v1/ddc/datastores/ibm-db2/{id}": "ksctl ddc",
+      "PUT /v1/ddc/datastores/local-storage/{id}": "ksctl ddc",
+      "PUT /v1/ddc/datastores/microsoft-sql-db/{id}": "ksctl ddc",
+      "PUT /v1/ddc/datastores/mongo-db/{id}": "ksctl ddc",
+      "PUT /v1/ddc/datastores/mysql-db/{id}": "ksctl ddc",
+      "PUT /v1/ddc/datastores/office365-exchange-online/{id}": "ksctl ddc",
+      "PUT /v1/ddc/datastores/office365-onedrive-business/{id}": "ksctl ddc",
+      "PUT /v1/ddc/datastores/office365-sharepoint-online/{id}": "ksctl ddc",
+      "PUT /v1/ddc/datastores/oracle-db/{id}": "ksctl ddc",
+      "PUT /v1/ddc/datastores/postgresql-db/{id}": "ksctl ddc",
+      "PUT /v1/ddc/datastores/salesforce/{id}": "ksctl ddc",
+      "PUT /v1/ddc/datastores/sap-hana-db/{id}": "ksctl ddc",
+      "PUT /v1/ddc/datastores/sharepoint-server/{id}": "ksctl ddc",
+      "PUT /v1/ddc/datastores/teradata-db/{id}": "ksctl ddc",
+      "PUT /v1/ddc/datastores/unix-file-share/{id}": "ksctl ddc",
+      "PUT /v1/ddc/datastores/windows-share/{id}": "ksctl ddc",
+      "PUT /v1/ddc/datastores/{id}": "ksctl ddc",
+      "PUT /v1/ddc/datastores/{id}/status": "ksctl ddc",
+      "PUT /v1/ddc/ml-agents/{id}": "ksctl ddc",
+      "PUT /v1/ddc/report-template/{id}/auto-generate": "ksctl ddc",
+      "PUT /v1/ddc/scans/{id}": "ksctl ddc",
+      "PUT /v1/ddc/similarity-searches/{id}": "ksctl ddc",
+      "PUT /v1/ddc/system-settings/fam": "ksctl ddc",
+      "PUT /v1/ddc/system-settings/hadoop/dataengine": "ksctl ddc",
+      "PUT /v1/ddc/system-settings/infotypes/{id}": "ksctl ddc",
+      "PUT /v1/ddc/system-settings/mlaas": "ksctl ddc",
+      "PUT /v1/ddc/system-settings/scans": "ksctl ddc",
+      "PUT /v1/ddc/system-settings/tdpaas": "ksctl ddc",
+    };
+
+    function findBestCliCommand(apiPath, method) {
+      // 0. Explicit Override Lookup
+      const lookupKey = `${method} ${apiPath}`;
+      const primaryPath = KSCTL_EXPLICIT_MAP[lookupKey];
+      if (primaryPath) {
+        if (!primaryPath.startsWith("ksctl")) {
+          return { cmdKey: primaryPath, entries: [], confidence: 'override', isReplacement: true };
+        }
+        
+        // Exact match in database
+        if (App.ksctlCommands[primaryPath]) {
+          return { cmdKey: primaryPath, entries: App.ksctlCommands[primaryPath], confidence: 'explicit' };
+        }
+        
+        let bestKey = null;
+        let highestScore = -1;
+        for (const cmdKey of Object.keys(App.ksctlCommands)) {
+          if (cmdKey === primaryPath || cmdKey.startsWith(primaryPath + ' ')) {
+            const cmdPath = App.ksctlCommands[cmdKey][0].p;
+            const score = calculateMatchScore(apiPath, method, cmdPath);
+            if (score > highestScore) {
+              highestScore = score;
+              bestKey = cmdKey;
+            }
+          }
+        }
+        if (bestKey) {
+          return { cmdKey: bestKey, entries: App.ksctlCommands[bestKey], confidence: 'explicit' };
+        }
+      }
+
+      // 1. Direct Synopsis Scan
+      for (const [cmdKey, entries] of Object.entries(App.ksctlCommands)) {
+        for (const entry of entries) {
+          const synopsisText = entry.c;
+          const methodPathRegex = /(POST|GET|PUT|PATCH|DELETE)\s+(?:to\s+)?(\/v\d\S+?)(?:[\s\)\.\,\:\b]|$)/i;
+          const match = synopsisText.match(methodPathRegex);
+          if (match) {
+            const docMethod = match[1].toUpperCase();
+            const docPath = match[2];
+            
+            const cleanDocPath = docPath.replace(/\{[^}]+\}/g, '').replace(/\/$/, '');
+            const cleanApiPath = apiPath.replace(/\{[^}]+\}/g, '').replace(/\/$/, '');
+            
+            if (docMethod === method && cleanDocPath === cleanApiPath) {
+              return { cmdKey, entries, confidence: 'exact' };
+            }
+          }
+        }
+      }
+
+      // 2. Token Overlap Score
+      let bestKey = null;
+      let highestScore = -1;
+      
+      for (const cmdKey of Object.keys(App.ksctlCommands)) {
+        const cmdPath = App.ksctlCommands[cmdKey][0].p;
+        const score = calculateMatchScore(apiPath, method, cmdPath);
+        if (score > highestScore) {
+          highestScore = score;
+          bestKey = cmdKey;
+        }
+      }
+      
+      if (highestScore >= 50) {
+        return { cmdKey: bestKey, entries: App.ksctlCommands[bestKey], confidence: 'fuzzy', score: highestScore };
+      }
+      
+      return null;
+    }
+
+    function renderKsctlTab(ep) {
+      const bestMatch = findBestCliCommand(ep.path, ep.method);
+      
+      if (!bestMatch) {
+        el.badgeCountKsctl.innerText = '0';
+        el.ksctlTabLayout.style.display = 'none';
+        el.emptyKsctlState.style.display = 'flex';
+        el.emptyKsctlState.querySelector('span').innerText = 'No corresponding KSCTL CLI command found for this API endpoint.';
+        return;
+      }
+      
+      if (bestMatch.isReplacement) {
+        el.badgeCountKsctl.innerText = '1';
+        el.ksctlTabLayout.style.display = 'none';
+        el.emptyKsctlState.style.display = 'flex';
+        
+        let noticeText = '';
+        if (bestMatch.cmdKey === 'use pdbctl utility') {
+          noticeText = 'This endpoint is not managed via ksctl. Please use the ProtectDB "pdbctl" command-line utility for database encryption management.';
+        } else if (bestMatch.cmdKey === 'web UI only') {
+          noticeText = 'This resource configuration is only available through the CipherTrust Manager Web Management Interface.';
+        } else {
+          noticeText = bestMatch.cmdKey;
+        }
+        el.emptyKsctlState.querySelector('span').innerText = noticeText;
+        return;
+      }
+      
+      el.badgeCountKsctl.innerText = '1';
+      el.ksctlTabLayout.style.display = 'flex';
+      el.emptyKsctlState.style.display = 'none';
+      
+      const { cmdKey, entries } = bestMatch;
+      el.ksctlCmdName.innerText = cmdKey;
+      
+      let synopsis = "No synopsis description available.";
+      let options = "No command options documented.";
+      let examples = "";
+      
+      entries.forEach(entry => {
+        const sub = entry.h.toLowerCase();
+        const content = entry.c;
+        
+        if (sub.includes('synopsis')) {
+          synopsis = content.replace(/^Ctx:[^\n]+\n+/, '');
+        } else if (sub.includes('options')) {
+          options = content.replace(/^Ctx:[^\n]+\n+/, '').replace(/^```\n?|\n?```$/g, '');
+        } else if (sub.includes('examples')) {
+          examples += content.replace(/^Ctx:[^\n]+\n+/, '') + '\n';
+        } else if (sub === cmdKey.toLowerCase()) {
+          const baseDesc = content.replace(/^Ctx:[^\n]+\n+/, '');
+          if (!synopsis || synopsis.includes('No synopsis description available')) {
+            synopsis = baseDesc;
+          }
+        }
+      });
+      
+      if (!examples) {
+        entries.forEach(entry => {
+          const match = entry.c.match(/\`\`\`[\s\S]+?\`\`\`/);
+          if (match) {
+            examples += match[0].replace(/^```\n?|\n?```$/g, '') + '\n';
+          }
+        });
+      }
+      
+      if (!examples) {
+        examples = `No examples provided. Execute:\n  ${cmdKey} --help`;
+      }
+      
+      el.ksctlCmdSynopsis.innerText = synopsis.trim();
+      el.ksctlCmdOptions.innerText = options.trim();
+      el.ksctlCmdExamples.innerText = examples.trim();
+    }
+
+    function selectEndpoint(ep) {
+      App.selectedEndpoint = ep;
+      
+      // Highlight sidebar item active class
+      const items = el.resultsList.querySelectorAll('.endpoint-item');
+      items.forEach(it => {
+        if (it.dataset.opid === ep.operationId) {
+          it.classList.add('active');
+        } else {
+          it.classList.remove('active');
+        }
+      });
+      
+      // Display details pane, hide welcome state
+      el.welcomePane.style.display = 'none';
+      el.detailsPane.style.display = 'flex';
+      
+      // Render Content Panels
+      renderDetailsHeader(ep);
+      renderParametersTab(ep);
+      renderRequestBodyTab(ep);
+      renderResponsesTab(ep);
+      renderKsctlTab(ep);
+      
+      // Reset active tabs to Parameters
+      switchTab('parameters');
+    }
+
+    function renderDetailsHeader(ep) {
+      el.detailsMethod.className = `method-badge ${ep.method.toLowerCase()}`;
+      el.detailsMethod.innerText = ep.method;
+      el.detailsPath.innerText = ep.path;
+      el.detailsSummary.innerText = ep.summary;
+      el.detailsDesc.innerText = ep.description || "No description available for this API endpoint.";
+      
+      el.detailsTags.innerHTML = '';
+      ep.tags.forEach(tag => {
+        const badge = document.createElement('span');
+        badge.className = 'tag-badge';
+        badge.innerText = tag;
+        el.detailsTags.appendChild(badge);
+      });
+    }
+
+    // -------------------------------------------------------------
+    // SCHEMA DE-REFERENCE RESOLVER
+    // -------------------------------------------------------------
+    function resolveSchema(schema, visited = new Set()) {
+      if (!schema || typeof schema !== 'object') return schema;
+
+      if (schema.$ref) {
+        const refName = schema.$ref.split('/').pop();
+        if (visited.has(refName)) {
+          return { type: 'object', isCircular: true, name: refName };
+        }
+        const resolved = App.definitions[refName];
+        if (!resolved) {
+          return { type: 'object', error: `Ref ${refName} not found` };
+        }
+        const nextVisited = new Set(visited);
+        nextVisited.add(refName);
+        
+        return {
+          ...resolveSchema(resolved, nextVisited),
+          _refName: refName
+        };
+      }
+
+      if (schema.type === 'array' && schema.items) {
+        return {
+          ...schema,
+          items: resolveSchema(schema.items, visited)
+        };
+      }
+
+      if (schema.properties) {
+        const resolvedProperties = {};
+        for (const [key, value] of Object.entries(schema.properties)) {
+          resolvedProperties[key] = resolveSchema(value, visited);
+        }
+        return {
+          ...schema,
+          properties: resolvedProperties
+        };
+      }
+
+      if (schema.allOf) {
+        const merged = { type: 'object', properties: {}, required: [] };
+        for (const sub of schema.allOf) {
+          const resolvedSub = resolveSchema(sub, visited);
+          if (resolvedSub.properties) {
+            Object.assign(merged.properties, resolvedSub.properties);
+          }
+          if (resolvedSub.required) {
+            merged.required = [...merged.required, ...resolvedSub.required];
+          }
+        }
+        return merged;
+      }
+
+      return schema;
+    }
+
+    // -------------------------------------------------------------
+    // MOCK PAYLOAD GENERATION
+    // -------------------------------------------------------------
+    function generateMockPayload(schema, visited = new Set()) {
+      if (!schema) return null;
+
+      if (schema.$ref) {
+        const refName = schema.$ref.split('/').pop();
+        if (visited.has(refName)) return `[Circular: ${refName}]`;
+        const nextVisited = new Set(visited);
+        nextVisited.add(refName);
+        return generateMockPayload(App.definitions[refName], nextVisited);
+      }
+
+      if (schema.allOf) {
+        const merged = {};
+        for (const sub of schema.allOf) {
+          const val = generateMockPayload(sub, visited);
+          if (typeof val === 'object' && val !== null) {
+            Object.assign(merged, val);
+          }
+        }
+        return merged;
+      }
+
+      const type = schema.type || 'object';
+
+      if (type === 'object') {
+        const obj = {};
+        if (schema.properties) {
+          for (const [key, prop] of Object.entries(schema.properties)) {
+            obj[key] = generateMockPayload(prop, visited);
+          }
+        }
+        return obj;
+      }
+
+      if (type === 'array') {
+        if (schema.items) {
+          return [generateMockPayload(schema.items, visited)];
+        }
+        return [];
+      }
+
+      if (schema.example !== undefined) return schema.example;
+      if (schema.default !== undefined) return schema.default;
+
+      switch (type) {
+        case 'string':
+          if (schema.format === 'date-time') return new Date().toISOString();
+          if (schema.format === 'uuid') return '00000000-0000-0000-0000-000000000000';
+          return schema.title || 'string';
+        case 'integer':
+        case 'number':
+          return 0;
+        case 'boolean':
+          return false;
+        default:
+          return null;
+      }
+    }
+
+    function syntaxHighlightJSON(json) {
+      if (typeof json !== 'string') {
+        json = JSON.stringify(json, null, 2);
+      }
+      // Clean HTML tags first
+      json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      
+      // Match keys, strings, numbers, booleans, and nulls
+      return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, (match) => {
+        let cls = 'json-number';
+        if (/^"/.test(match)) {
+          if (/:$/.test(match)) {
+            cls = 'json-key';
+          } else {
+            cls = 'json-string';
+          }
+        } else if (/true|false/.test(match)) {
+          cls = 'json-boolean';
+        } else if (/null/.test(match)) {
+          cls = 'json-null';
+        }
+        return `<span class="${cls}">${match}</span>`;
+      });
+    }
+
+    // -------------------------------------------------------------
+    // RENDER: PARAMETERS TAB PANEL
+    // -------------------------------------------------------------
+    function renderParametersTab(ep) {
+      // Exclude standard body parameters since they go into the Request Body tab
+      const nonBodyParams = ep.parameters.filter(p => p.in !== 'body');
+      
+      el.badgeCountParams.innerText = nonBodyParams.length;
+      
+      if (nonBodyParams.length === 0) {
+        el.paramsTable.style.display = 'none';
+        el.emptyParamsState.style.display = 'flex';
+        return;
+      }
+      
+      el.paramsTable.style.display = 'table';
+      el.emptyParamsState.style.display = 'none';
+      el.paramsTableBody.innerHTML = '';
+      
+      nonBodyParams.forEach(param => {
+        const row = document.createElement('tr');
+        const isRequired = param.required ? '<span class="param-req required">Required</span>' : '<span class="param-req optional">Optional</span>';
+        
+        row.innerHTML = `
+          <td>
+            <div class="param-name-cell">
+              <span class="param-name">${param.name}</span>
+              ${isRequired}
+            </div>
+          </td>
+          <td>
+            <span class="param-in-badge">${param.in}</span>
+          </td>
+          <td>
+            <span class="param-type-badge">${param.type || 'string'}${param.format ? ` (${param.format})` : ''}</span>
+          </td>
+          <td>
+            <div class="param-desc">${param.description || 'No description provided.'}</div>
+          </td>
+        `;
+        el.paramsTableBody.appendChild(row);
+      });
+    }
+
+    // -------------------------------------------------------------
+    // RENDER: REQUEST BODY SCHEMA TAB PANEL (TREE + CODE)
+    // -------------------------------------------------------------
+    function renderRequestBodyTab(ep) {
+      // Body parameters look like: parameter with { in: 'body', schema: {...} }
+      const bodyParam = ep.parameters.find(p => p.in === 'body');
+      
+      el.badgeCountBody.innerText = bodyParam ? '1' : '0';
+      
+      if (!bodyParam || !bodyParam.schema) {
+        el.bodyTabLayout.style.display = 'none';
+        el.emptyBodyState.style.display = 'flex';
+        return;
+      }
+      
+      el.bodyTabLayout.style.display = 'flex';
+      el.emptyBodyState.style.display = 'none';
+      el.schemaRowsBody.innerHTML = '';
+      
+      // 1. Resolve body schema recursively
+      const resolvedSchema = resolveSchema(bodyParam.schema);
+      
+      // 2. Generate and render interactive tree rows
+      buildInteractiveTree(resolvedSchema, el.schemaRowsBody);
+      
+      // 3. Generate and highlight simulated Request Body JSON
+      const mockObj = generateMockPayload(bodyParam.schema);
+      el.mockPayloadCode.innerHTML = syntaxHighlightJSON(mockObj);
+    }
+
+    function buildInteractiveTree(schema, container) {
+      const rows = [];
+      
+      function recurse(node, path, name, isRequired, depth) {
+        if (!node) return;
+        
+        const type = node.type || 'object';
+        const hasProperties = node.properties && Object.keys(node.properties).length > 0;
+        const hasArrayItems = node.type === 'array' && node.items && (node.items.properties || node.items.$ref);
+        const hasChildren = hasProperties || hasArrayItems;
+        
+        let typeLabel = type;
+        if (node._refName) {
+          typeLabel = `${type} (${node._refName})`;
+        } else if (node.isCircular) {
+          typeLabel = `circular [${node.name}]`;
+        }
+        
+        const row = document.createElement('div');
+        row.className = 'schema-row';
+        row.dataset.path = path;
+        row.dataset.depth = depth;
+        
+        // Indent field name
+        const pad = depth * 16;
+        const toggleHtml = hasChildren 
+          ? `<span class="tree-toggle expanded" onclick="toggleSchemaBranch(event, '${path}')">▶</span>` 
+          : `<span style="width: 16px; display:inline-block;"></span>`;
+          
+        const requiredBadge = isRequired 
+          ? `<span class="param-req required">Required</span>` 
+          : `<span class="param-req optional">Optional</span>`;
+          
+        const typeClass = node.isCircular ? 'circular' : type;
+        
+        row.innerHTML = `
+          <div class="schema-col-name" style="padding-left: ${pad}px">
+            ${toggleHtml}
+            <span>${name}</span>
+          </div>
+          <div class="schema-col-type">
+            <span class="badge-type-${typeClass}">${typeLabel}</span>
+          </div>
+          <div class="schema-col-required">
+            ${requiredBadge}
+          </div>
+          <div class="schema-col-desc" title="${node.description || ''}">
+            ${node.description || ''}
+          </div>
+        `;
+        
+        container.appendChild(row);
+        
+        // Children recursions
+        if (hasProperties) {
+          const reqs = node.required || [];
+          const entries = Object.entries(node.properties);
+          
+          entries.sort((a, b) => {
+            const nameA = a[0];
+            const nameB = b[0];
+            const isReqA = reqs.includes(nameA);
+            const isReqB = reqs.includes(nameB);
+            
+            if (isReqA && !isReqB) return -1;
+            if (!isReqA && isReqB) return 1;
+            
+            return nameA.localeCompare(nameB);
+          });
+
+          for (const [key, childSchema] of entries) {
+            const childPath = path ? `${path}.${key}` : key;
+            recurse(childSchema, childPath, key, reqs.includes(key), depth + 1);
+          }
+        } else if (hasArrayItems) {
+          const itemsSchema = resolveSchema(node.items);
+          recurse(itemsSchema, `${path}[]`, 'items', false, depth + 1);
+        }
+      }
+      
+      recurse(schema, 'root', 'PayloadRoot', false, 0);
+    }
+
+    // Toggle collapse/expand child nodes in schema tree
+    window.toggleSchemaBranch = function(e, parentPath) {
+      e.stopPropagation();
+      const toggleBtn = e.target;
+      const isCollapsing = toggleBtn.classList.contains('expanded');
+      
+      toggleBtn.classList.toggle('expanded');
+      
+      // Find all rows that are descendants of this parent path
+      const rows = Array.from(el.schemaRowsBody.querySelectorAll('.schema-row'));
+      
+      rows.forEach(row => {
+        const rowPath = row.dataset.path;
+        // Match descendants (e.g. parentPath.key or parentPath[].key)
+        if (rowPath !== parentPath && (rowPath.startsWith(parentPath + '.') || rowPath.startsWith(parentPath + '[]'))) {
+          if (isCollapsing) {
+            // Collapse
+            row.style.display = 'none';
+            // Also update any nested toggles in descendants to look collapsed
+            const subToggle = row.querySelector('.tree-toggle');
+            if (subToggle) subToggle.classList.remove('expanded');
+          } else {
+            // Expand (only direct children should be visible initially, but for simpler toggle we make all children visible)
+            row.style.display = 'grid';
+            const subToggle = row.querySelector('.tree-toggle');
+            if (subToggle) subToggle.classList.add('expanded');
+          }
+        }
+      });
+    };
+
+    // -------------------------------------------------------------
+    // RENDER: RESPONSES TAB PANEL
+    // -------------------------------------------------------------
+    function renderResponsesTab(ep) {
+      const responseCodes = Object.keys(ep.responses);
+      el.badgeCountResponses.innerText = responseCodes.length;
+      
+      el.responsesListContainer.innerHTML = '';
+      
+      if (responseCodes.length === 0) {
+        el.responsesListContainer.innerHTML = `
+          <div class="empty-tab-state">
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+              <line x1="12" y1="8" x2="12" y2="12" stroke="currentColor" stroke-width="2"/>
+              <line x1="12" y1="16" x2="12.01" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <span>No documentation for responses was found for this endpoint.</span>
+          </div>
+        `;
+        return;
+      }
+      
+      // Sort responses (e.g. 200 first)
+      responseCodes.sort().forEach((code, index) => {
+        const resp = ep.responses[code];
+        const isSuccess = code.startsWith('2');
+        const isClientErr = code.startsWith('4');
+        
+        let colorClass = 'server-error';
+        if (isSuccess) colorClass = 'success';
+        else if (isClientErr) colorClass = 'client-error';
+        
+        const card = document.createElement('div');
+        card.className = `response-card${index === 0 ? ' expanded' : ''}`;
+        
+        // Check if there is a response schema
+        let schemaHtml = '';
+        if (resp.schema) {
+          const mockRespObj = generateMockPayload(resp.schema);
+          const highlightedMock = syntaxHighlightJSON(mockRespObj);
+          schemaHtml = `
+            <div class="response-card-body">
+              <div class="response-body-title">Response JSON Structure</div>
+              <pre class="mock-code-container"><code>${highlightedMock}</code></pre>
+            </div>
+          `;
+        } else {
+          schemaHtml = `
+            <div class="response-card-body">
+              <div style="color: var(--text-muted); font-size:12px;">This response does not declare a structured schema body.</div>
+            </div>
+          `;
+        }
+        
+        card.innerHTML = `
+          <div class="response-card-header" onclick="toggleResponseCard(this)">
+            <span class="response-status-badge ${colorClass}">${code}</span>
+            <span class="response-card-desc">${resp.description || 'No description provided.'}</span>
+            <span class="response-card-toggle">▼</span>
+          </div>
+          ${schemaHtml}
+        `;
+        
+        el.responsesListContainer.appendChild(card);
+      });
+    }
+
+    window.toggleResponseCard = function(headerElement) {
+      const card = headerElement.closest('.response-card');
+      card.classList.toggle('expanded');
+    };
+
+    // -------------------------------------------------------------
+    // INTERACTIVE TABS AND UI EVENT LISTENERS
+    // -------------------------------------------------------------
+    function setupInteractiveListeners() {
+      // Search input changes (Debounced)
+      el.searchInput.addEventListener('input', (e) => {
+        App.searchQuery = e.target.value;
+        triggerFilteredSearch();
+      });
+
+      // Method quick-filters
+      el.methodBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const method = btn.dataset.method;
+          if (App.selectedMethods.has(method)) {
+            App.selectedMethods.delete(method);
+            btn.classList.remove('active');
+          } else {
+            App.selectedMethods.add(method);
+            btn.classList.add('active');
+          }
+          triggerFilteredSearch();
+        });
+      });
+
+      // Tag selector change
+      el.tagSelect.addEventListener('change', (e) => {
+        App.selectedTag = e.target.value;
+        triggerFilteredSearch();
+      });
+
+      // Copy path button action
+      el.copyPathBtn.addEventListener('click', () => {
+        if (!App.selectedEndpoint) return;
+        navigator.clipboard.writeText(App.selectedEndpoint.path)
+          .then(() => showToast("Endpoint path copied to clipboard."))
+          .catch(() => showToast("Failed to copy path. Please select manually."));
+      });
+
+      // Copy Mock Payload button action
+      el.copyMockBtn.addEventListener('click', () => {
+        if (!App.selectedEndpoint) return;
+        const bodyParam = App.selectedEndpoint.parameters.find(p => p.in === 'body');
+        if (!bodyParam || !bodyParam.schema) return;
+        
+        const mockPayload = generateMockPayload(bodyParam.schema);
+        navigator.clipboard.writeText(JSON.stringify(mockPayload, null, 2))
+          .then(() => showToast("Simulated Request JSON copied to clipboard."))
+          .catch(() => showToast("Failed to copy JSON. Please select manually."));
+      });
+      
+      // Copy KSCTL Command button action
+      el.copyKsctlBtn.addEventListener('click', () => {
+        if (!App.selectedEndpoint) return;
+        const textToCopy = el.ksctlCmdExamples.innerText || el.ksctlCmdName.innerText;
+        navigator.clipboard.writeText(textToCopy)
+          .then(() => showToast("KSCTL Command reference copied to clipboard."))
+          .catch(() => showToast("Failed to copy command. Please select manually."));
+      });
+
+      // Content Tab toggles
+      el.tabItems.forEach(tab => {
+        tab.addEventListener('click', () => {
+          const tabId = tab.dataset.tab;
+          switchTab(tabId);
+        });
+      });
+
+      // Resizable Panel Logic
+      const resizer = document.getElementById('paneResizer');
+      const topPanel = document.getElementById('detailsHeader');
+      
+      let startY, startHeight;
+      
+      resizer.addEventListener('mousedown', (e) => {
+        startY = e.clientY;
+        startHeight = parseInt(document.defaultView.getComputedStyle(topPanel).height, 10);
+        
+        resizer.classList.add('dragging');
+        document.documentElement.addEventListener('mousemove', doDrag, false);
+        document.documentElement.addEventListener('mouseup', stopDrag, false);
+      });
+      
+      function doDrag(e) {
+        e.preventDefault();
+        const deltaY = e.clientY - startY;
+        const newHeight = startHeight + deltaY;
+        
+        const parentHeight = resizer.parentElement.clientHeight;
+        const minH = 120;
+        const maxH = parentHeight - 150;
+        
+        if (newHeight >= minH && newHeight <= maxH) {
+          topPanel.style.height = newHeight + 'px';
+        }
+      }
+      
+      function stopDrag() {
+        resizer.classList.remove('dragging');
+        document.documentElement.removeEventListener('mousemove', doDrag, false);
+        document.documentElement.removeEventListener('mouseup', stopDrag, false);
+      }
+    }
+
+    function switchTab(tabId) {
+      // Toggle Tab Active Classes
+      el.tabItems.forEach(item => {
+        if (item.dataset.tab === tabId) {
+          item.classList.add('active');
+        } else {
+          item.classList.remove('active');
+        }
+      });
+      
+      // Toggle Tab Pane Visibility
+      el.tabPanes.forEach(pane => {
+        const id = pane.id;
+        if (id === `pane${tabId.charAt(0).toUpperCase() + tabId.slice(1)}`) {
+          pane.classList.add('active');
+        } else {
+          pane.classList.remove('active');
+        }
+      });
+    }
+  </script>
+</body>
+</html>

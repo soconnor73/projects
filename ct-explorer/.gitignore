@@ -1,0 +1,29 @@
+# AI directories
+.antigravity
+.claude
+
+# Dependency directories
+node_modules/
+venv/
+.venv/
+env/
+
+# Build and output directories
+dist/
+build/
+out/
+
+# Environment secrets and credentials
+.env
+.env.local
+*.pem
+
+# IDEs and text editors
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+
+# Operating system files
+.DS_Store
+Thumbs.db
