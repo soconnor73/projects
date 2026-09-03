@@ -12,3 +12,7 @@ Client-side SPA for browsing, searching, and analyzing the CipherTrust Manager O
 Scrapes, tracks, and logs latest versions for Thales CipherTrust (CDSP), CipherTrust Transparent Encryption (CTE), Luna HSM, and Data Security Fabric (DSF) products.  
 ![screenshot](./assets/get-current-versions.png)  
 
+- **[cminfo](./cminfo/)**  
+Python CLI that presents CipherTrust Manager information (keys, users, CTE clients, alarms, services, and more) in readable, formatted output instead of raw `ksctl` JSON.  
+![screenshot](./cminfo/images/banner.png)  
+
