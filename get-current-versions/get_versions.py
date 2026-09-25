@@ -230,7 +230,9 @@ def fetch_luna_hsm_components() -> list[dict[str, str]]:
             r'<td class="TableStyle-Page-Body[DA]-Column1-Body1">([^<]+)</td>',
             re.DOTALL
         )
-        matches = pattern.findall(html)
+        # The upstream page sometimes repeats a row verbatim (e.g. Luna Backup HSM 7
+        # Firmware appeared twice); keep only the first of each identical match.
+        matches = list(dict.fromkeys(pattern.findall(html)))
         components = []
         for href, title, note, date in matches:
             title_text = title.strip()

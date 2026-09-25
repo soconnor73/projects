@@ -1,6 +1,7 @@
-# Repeating entries
+# ~~Repeating entries~~ (Completed in 1.0.3)
 
 - Luna Backup HSM 7 Firmware is listed twice
+- Done: the Luna home page itself repeats the row, so the Luna scraper now drops rows that are exact copies of an earlier one
 
 # Enhancement - show minimum supported CipherTrust version
 
