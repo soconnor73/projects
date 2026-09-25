@@ -3,7 +3,9 @@
 - Luna Backup HSM 7 Firmware is listed twice
 - Done: the Luna home page itself repeats the row, so the Luna scraper now drops rows that are exact copies of an earlier one
 
-# Enhancement - show minimum supported CipherTrust version
+# ~~Enhancement - show minimum supported CipherTrust version~~ (Completed in 1.0.4)
+
+- Done: new "CipherTrust Manager Release Support" section showing the LTS releases (scheduled patches until / support until) and the end-of-support version list, with change detection
 
 - Show LTS release support timeframe
 - Source: https://docs-cybersec.thalesgroup.com/bundle/latest-cdsp-cm/page/admin/cm_admin/cm_release_model/index.html

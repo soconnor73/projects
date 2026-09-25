@@ -24,6 +24,8 @@ CTE_COMPAT_MATRIX_URL = f"{PORTAL_HOST}/cte-con/?OsMajor=RHEL%2010&OsMinor=all&K
 # sideBarIndex=6 is the CipherTrust Manager view, radioOption=0 is LINUX/WINDOWS;
 # firstOption/secondOption=All are needed or the table renders empty
 CTE_CM_COMPAT_URL = f"{PORTAL_HOST}/cte-con/?sideBarIndex=6&radioOption=0&firstOption=All&secondOption=All"
+# CipherTrust Manager release model page: LTS support dates and end-of-support versions (prose, not a table)
+CM_RELEASE_MODEL_PAGE = ("latest-cdsp-cm", "admin/cm_admin/cm_release_model/index.html")
 
 def get_json(url: str) -> dict:
     """Helper to fetch JSON data from a URL."""
@@ -294,6 +296,83 @@ def fetch_dsf_components() -> list[dict[str, str]]:
         print(f"Error fetching DSF components: {e}", file=sys.stderr)
         return []
 
+def fetch_cm_release_support() -> dict:
+    """
+    Fetches the CipherTrust Manager release model page and parses its LTS
+    releases (patch and support end dates) and the end-of-support version list.
+    The page states these in sentences, so if the wording changes the parsed
+    lists come back empty and a warning is printed.
+    """
+    bundle, page = CM_RELEASE_MODEL_PAGE
+    homepage = f"{PORTAL_HOST}/bundle/{bundle}/page/{page}"
+    result = {"lts_releases": [], "end_of_support": [], "homepage": homepage}
+    try:
+        data = get_json(f"{API_HOST}/api/bundle/{bundle}/page/{page}")
+        html = data.get("topic_html") or ""
+    except Exception as e:
+        print(f"Error fetching CipherTrust Manager release model: {e}", file=sys.stderr)
+        return result
+
+    def text_of(fragment: str) -> str:
+        return html_lib.unescape(re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", fragment))).strip()
+
+    # e.g. <strong>2.23.x-LTS release</strong>. This is the most current and preferred LTS
+    # version. It receives scheduled patches until Q2 2028 and support until Q2 2030.
+    for m in re.finditer(r"<strong>\s*(\d+\.\d+\.x)-LTS release\s*</strong>(.*?)</li>", html, re.DOTALL | re.IGNORECASE):
+        text = text_of(m.group(2))
+        patches = re.search(r"patches until (Q[1-4] \d{4})", text, re.IGNORECASE)
+        support = re.search(r"support until (Q[1-4] \d{4})", text, re.IGNORECASE)
+        note = re.split(r"\s*It receives", text, maxsplit=1)[0].strip(" .")
+        result["lts_releases"].append({
+            "title": f"{m.group(1)}-LTS",
+            "note": note + "." if note else "",
+            "patches_until": patches.group(1) if patches else "Unknown",
+            "support_until": support.group(1) if support else "Unknown",
+            "homepage": homepage,
+        })
+
+    # e.g. "Versions 2.10.x and older, 2.12.x, 2.13.x, and 2.14.x have reached end of support."
+    # Search paragraph by paragraph so the match cannot run on from an earlier "versions".
+    for paragraph in re.findall(r"<p[^>]*>(.*?)</p>", html, re.DOTALL | re.IGNORECASE):
+        eos = re.search(r"\bVersions (.+?) have reached end of support", text_of(paragraph))
+        if eos:
+            parts = re.split(r",\s*(?:and\s+)?|\s+and\s+(?=\d)", eos.group(1))
+            result["end_of_support"] = [part.strip() for part in parts if part.strip()]
+            break
+
+    if not result["lts_releases"]:
+        print("Warning: no LTS releases found on the CipherTrust Manager release model page.", file=sys.stderr)
+    if not result["end_of_support"]:
+        print("Warning: no end-of-support versions found on the CipherTrust Manager release model page.", file=sys.stderr)
+    return result
+
+def detect_cm_support_changes(last: dict, curr: dict) -> list[str]:
+    """Compare CipherTrust Manager LTS dates and end-of-support versions between runs."""
+    changes = []
+    last_lts = {item["title"]: item for item in last.get("lts_releases", [])}
+    curr_lts = {item["title"]: item for item in curr.get("lts_releases", [])}
+    for title, item in curr_lts.items():
+        old = last_lts.get(title)
+        if old is None:
+            changes.append(f"  [New CM LTS Release] '{title}' added (Patches until: {item['patches_until']}, Support until: {item['support_until']})")
+            continue
+        for key, label in (("patches_until", "Patches until"), ("support_until", "Support until")):
+            if item[key] != old.get(key):
+                changes.append(f"  [CM LTS Change] '{title}': {label} {old.get(key)} -> {item[key]}")
+    for title in last_lts:
+        if title not in curr_lts:
+            changes.append(f"  [Removed CM LTS Release] '{title}' is no longer listed")
+
+    last_eos = last.get("end_of_support", [])
+    curr_eos = curr.get("end_of_support", [])
+    for version in curr_eos:
+        if version not in last_eos:
+            changes.append(f"  [CM End of Support] '{version}' added to the end-of-support list")
+    for version in last_eos:
+        if version not in curr_eos:
+            changes.append(f"  [CM End of Support] '{version}' removed from the end-of-support list")
+    return changes
+
 def detect_changes(
     last_items: list[dict[str, str]],
     curr_items: list[dict[str, str]],
@@ -500,6 +579,13 @@ def render_html(data: dict, changes: list[str], has_last: bool) -> str:
     except ValueError:
         ts_display = ts
 
+    cm_support = data.get("cm_release_support", {})
+    cm_eos = ", ".join(cm_support.get("end_of_support", [])) or "Unknown (not found on the release model page)"
+    cm_note = (
+        f"<strong>End of support:</strong> {_esc(cm_eos)}<br>"
+        f'Source: <a href="{_esc(cm_support.get("homepage", ""))}" target="_blank" rel="noopener">CipherTrust Manager Release Model</a>'
+    )
+
     sections = [
         (
             "CipherTrust Data Security Platform (CDSP)",
@@ -507,6 +593,14 @@ def render_html(data: dict, changes: list[str], has_last: bool) -> str:
             [("title", "Name"), ("version", "Version"), ("homepage", "Docs")],
             "No CipherTrust products found.",
             "",
+        ),
+        (
+            "CipherTrust Manager Release Support",
+            cm_support.get("lts_releases", []),
+            [("title", "LTS Release"), ("note", "Notes"), ("patches_until", "Scheduled Patches Until"),
+             ("support_until", "Support Until"), ("homepage", "Docs")],
+            "No LTS releases found (the release model page wording may have changed).",
+            cm_note,
         ),
         (
             "CipherTrust Transparent Encryption (CTE)",
@@ -603,6 +697,10 @@ def main():
     else:
         print("Warning: No CipherTrust products found.", file=sys.stderr)
 
+    # 1b. CipherTrust Manager LTS support dates and end-of-support versions
+    print("Fetching CipherTrust Manager release support...", file=sys.stderr)
+    cm_support = fetch_cm_release_support()
+
     # 2. Scraping CipherTrust Transparent Encryption (CTE) Component Versions
     print("Fetching CipherTrust Transparent Encryption (CTE) component versions...", file=sys.stderr)
     cte_components = fetch_cte_components()
@@ -635,6 +733,7 @@ def main():
     new_data = {
         "timestamp": timestamp,
         "ciphertrust_products": cdsp_products,
+        "cm_release_support": cm_support,
         "cte_components": cte_components,
         "luna_hsm_components": luna_components,
         "dsf_components": dsf_components
@@ -655,6 +754,9 @@ def main():
                 last_data = json.load(f)
             
             changes.extend(detect_changes(last_data.get("ciphertrust_products", []), cdsp_products, "CDSP Product"))
+            # Skip when the previous run predates this section, so it isn't reported as all-new.
+            if "cm_release_support" in last_data:
+                changes.extend(detect_cm_support_changes(last_data["cm_release_support"], cm_support))
             changes.extend(detect_changes(last_data.get("cte_components", []), cte_components, "CTE Component", has_date=True))
             changes.extend(detect_changes(last_data.get("luna_hsm_components", []), luna_components, "Luna HSM Component", has_date=True))
             changes.extend(detect_changes(last_data.get("dsf_components", []), dsf_components, "DSF Component"))
@@ -676,6 +778,17 @@ def main():
             print("|---|---|")
             for p in cdsp_products:
                 print(f"| {p['title']} | {p['version']} |")
+
+        print("\n## CipherTrust Manager Release Support")
+        if cm_support["lts_releases"]:
+            print("| LTS Release | Notes | Scheduled Patches Until | Support Until |")
+            print("|---|---|---|---|")
+            for r in cm_support["lts_releases"]:
+                print(f"| {r['title']} | {r['note']} | {r['patches_until']} | {r['support_until']} |")
+        else:
+            print("No LTS releases found (the release model page wording may have changed).")
+        print(f"\n**End of support:** {', '.join(cm_support['end_of_support']) or 'Unknown'}")
+        print(f"Source: [CipherTrust Manager Release Model]({cm_support['homepage']})")
 
         print("\n## CipherTrust Transparent Encryption (CTE)")
         if args.show_urls:
@@ -725,6 +838,16 @@ def main():
             args.show_urls,
             "No CipherTrust products found."
         )
+
+        print_table(
+            "CIPHERTRUST MANAGER RELEASE SUPPORT",
+            cm_support["lts_releases"],
+            ["title", "patches_until", "support_until"],
+            ["LTS Release", "Scheduled Patches Until", "Support Until"],
+            args.show_urls,
+            "No LTS releases found (the release model page wording may have changed)."
+        )
+        print(f"End of support: {', '.join(cm_support['end_of_support']) or 'Unknown'}")
 
         print_table(
             "CIPHERTRUST TRANSPARENT ENCRYPTION (CTE)",
