@@ -18,6 +18,12 @@ __version__ = "1.0.1"
 
 API_HOST = "https://docs-cybersec-be.thalesgroup.com"
 PORTAL_HOST = "https://docs-cybersec.thalesgroup.com"
+# CTE Compatibility Matrix, pre-filtered to RHEL 10 (the most common CTE Linux platform)
+CTE_COMPAT_MATRIX_URL = f"{PORTAL_HOST}/cte-con/?OsMajor=RHEL%2010&OsMinor=all&Kernel=all&selectedOsMajor=RHEL%2010"
+# Which CTE agent versions each CipherTrust Manager release supports
+# sideBarIndex=6 is the CipherTrust Manager view, radioOption=0 is LINUX/WINDOWS;
+# firstOption/secondOption=All are needed or the table renders empty
+CTE_CM_COMPAT_URL = f"{PORTAL_HOST}/cte-con/?sideBarIndex=6&radioOption=0&firstOption=All&secondOption=All"
 
 def get_json(url: str) -> dict:
     """Helper to fetch JSON data from a URL."""
@@ -421,6 +427,7 @@ td {
 }
 tbody tr:nth-child(even) { background: var(--light); }
 .empty { color: var(--steel); font-style: italic; }
+.section-note { color: var(--steel); font-size: 0.88rem; margin: 0 0 1rem; }
 .changes { list-style: none; padding: 0; margin: 0; }
 .changes li {
     padding: 0.4rem 0.7rem;
@@ -497,31 +504,40 @@ def render_html(data: dict, changes: list[str], has_last: bool) -> str:
             data.get("ciphertrust_products", []),
             [("title", "Name"), ("version", "Version"), ("homepage", "Docs")],
             "No CipherTrust products found.",
+            "",
         ),
         (
             "CipherTrust Transparent Encryption (CTE)",
             data.get("cte_components", []),
             [("title", "Name"), ("version", "Version"), ("date", "Release Date"), ("homepage", "Docs")],
             "No CTE components found.",
+            'Supported OS and kernel versions for each CTE agent: see the '
+            f'<a href="{_esc(CTE_COMPAT_MATRIX_URL)}" target="_blank" rel="noopener">CTE Compatibility Matrix</a>.<br>'
+            'CTE versions supported by each CipherTrust Manager release: see '
+            f'<a href="{_esc(CTE_CM_COMPAT_URL)}" target="_blank" rel="noopener">CipherTrust Manager Compatible CTE Versions</a>.',
         ),
         (
             "Luna Network HSM Components",
             data.get("luna_hsm_components", []),
             [("title", "Name"), ("version", "Version"), ("date", "Release Date"), ("homepage", "Docs")],
             "No Luna HSM components found.",
+            "",
         ),
         (
             "Data Security Fabric (DSF)",
             data.get("dsf_components", []),
             [("title", "Name"), ("version", "Version"), ("homepage", "Docs")],
             "No DSF components found.",
+            "",
         ),
     ]
 
     body_parts = []
-    for title, items, columns, empty_message in sections:
+    for title, items, columns, empty_message, note_html in sections:
         body_parts.append(f'<h2 class="section-title">{_esc(title)}</h2>')
         body_parts.append(_html_table(items, columns, empty_message))
+        if note_html:
+            body_parts.append(f'<p class="section-note">{note_html}</p>')
 
     if has_last:
         body_parts.append('<h2 class="section-title">Detected Changes</h2>')
@@ -670,6 +686,8 @@ def main():
             print("|---|---|---|")
             for c in cte_components:
                 print(f"| {c['title']} | {c['version']} | {c['date']} |")
+        print(f"\nSupported OS and kernel versions: [CTE Compatibility Matrix]({CTE_COMPAT_MATRIX_URL})")
+        print(f"CTE versions supported by each CipherTrust Manager release: [CipherTrust Manager Compatible CTE Versions]({CTE_CM_COMPAT_URL})")
             
         print("\n## Luna Network HSM Components")
         if args.show_urls:
@@ -714,6 +732,8 @@ def main():
             args.show_urls,
             "No CTE components found."
         )
+        print(f"CTE Compatibility Matrix (supported OS/kernels): {CTE_COMPAT_MATRIX_URL}")
+        print(f"CipherTrust Manager Compatible CTE Versions: {CTE_CM_COMPAT_URL}")
 
         print_table(
             "LUNA NETWORK HSM COMPONENTS",

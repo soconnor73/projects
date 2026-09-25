@@ -21,6 +21,7 @@ A lightweight Python scraping utility that automatically fetches, tracks, and lo
     -   CTE for Kubernetes (CTE-K8s)
 -   **Luna HSM Table Scraping**: Scrapes the component version grid directly from the MadCap Flare static homepage on `thalesdocs.com`.
 -   **DSF Component Scraping**: Fetches the dynamic JSON topic data for the DSF integration page from the backend API to scrape its product versions table.
+-   **CTE Compatibility Links**: The CTE section links to the CTE Compatibility Matrix (pre-filtered to RHEL 10) and to the CipherTrust Manager ↔ CTE compatible-versions view.
 -   **Change Detection**: Compares the scraped versions from the current run against the previous execution's state, detailing additions, removals, and version number/release date changes.
 -   **State History**: Automatically archives the previous run to `last.json` and saves the current state to `current.json` with an ISO 8601 creation timestamp.
 -   **HTML Report**: Optionally emits a standalone, nicely formatted HTML page (`--html`) with one table per product group and a highlighted change list.
@@ -205,3 +206,56 @@ When the script runs, it manages database state in the current working directory
   ]
 }
 ```
+
+---
+
+## Site Notes (for maintainers)
+
+How the scraped Thales sites are built, so you know where to look when a scraper breaks. Last checked 2026-09-25.
+
+### docs-cybersec.thalesgroup.com (Zoomin portal)
+
+The portal is a JavaScript single-page app, so fetching a portal URL returns an empty shell. Content comes from the backend API (no auth; send a browser `User-Agent`):
+
+| Endpoint | Returns |
+|---|---|
+| `https://docs-cybersec-be.thalesgroup.com/api/categories` | Category tree. The CDSP node (`id == "CDSP"`) has `subLinks[].route` values like `/bundle/<bundle>/page/...` |
+| `.../api/bundle/<bundle>` | Bundle metadata. The latest version is the label with `subjectHeadId == "productversionid"` (its `navtitle`) |
+| `.../api/bundle/<bundle>/page/<path>` | The rendered HTML of one page (e.g. CTE release notes) |
+
+The human-facing link for the same page is `https://docs-cybersec.thalesgroup.com/bundle/<bundle>/page/<path>`.
+
+The CipherTrust Manager release-model page (`latest-cdsp-cm`, `admin/cm_admin/cm_release_model/index.html`) states LTS and end-of-support dates in plain sentences, not a table. Any scraper for it has to match text (e.g. `2.23.x-LTS release. ... patches until Q2 2028 and support until Q2 2030`) and should fall back to "Unknown" when the wording changes.
+
+### CTE Compatibility Matrix (`/cte-con/`)
+
+`https://docs-cybersec.thalesgroup.com/cte-con/` is a portal route that loads a separate Angular app from `https://thalesdocs.com/ctp/cte/cte-cm/` (`runtime.js`, `polyfills.js`, `main.js`). The same app also runs on its own at that `thalesdocs.com` address and accepts the same query parameters. It needs JavaScript, so `curl` only sees the shell.
+
+`sideBarIndex` selects the view:
+
+| Index | View | Index | View |
+|---|---|---|---|
+| 0 | Linux Platform (default) | 5 | DSM |
+| 1 | Windows Platform | 6 | CipherTrust Manager |
+| 2 | AIX Platform | 7 | CTE for Kubernetes |
+| 3 | CTE Release Support Status | 8 | CTE-Userspace |
+| 4 | Application | 9 | CDSPaaS |
+
+- **Linux view filter:** `?OsMajor=RHEL%2010&OsMinor=all&Kernel=all&selectedOsMajor=RHEL%2010`
+- **CipherTrust Manager view:** `?sideBarIndex=6&radioOption=0&firstOption=All&secondOption=All`. `radioOption` is 0 for LINUX/WINDOWS and 1 for AIX. `firstOption`/`secondOption=All` are required; without them the table renders empty.
+- **Data sources:** the platform matrices come from `https://thalesdocs.com/ctp/cte/cte-cm/assets/{linux,aix,windows}.json`. The CipherTrust Manager ↔ CTE mapping is built into `main.js`, not a separate file.
+
+To check what a deep link actually renders, use headless Chrome with a fresh profile:
+
+```bash
+chrome --headless=new --disable-gpu --user-data-dir=./tmp-profile \
+  --virtual-time-budget=20000 --dump-dom "<url>" > dom.html
+```
+
+Then search the text after `<app-root` (the portal shell puts a lot of config JSON first).
+
+### thalesdocs.com Luna HSM 7
+
+`https://www.thalesdocs.com/gphsm/luna/7/docs/network/Content/Home_Luna.htm` is static MadCap Flare HTML, so no API is needed. Each component row is a `TableStyle-Page-Body[EB]-Column1-Body1` cell holding a link like `CRN/...` with text "Name X.Y.Z", followed by a date cell.
+
+The page sometimes lists the same row twice (as of 2026-09-25: "Luna Backup HSM 7 Firmware 7.9.3"). Duplicate rows in the output come from the page itself, not the parser, so remove repeated rows before change detection.
