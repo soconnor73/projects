@@ -418,10 +418,13 @@ def print_table(
     keys: list[str],
     headers: list[str],
     show_urls: bool,
-    empty_message: str
+    empty_message: str,
+    intro: str = ""
 ) -> None:
     """Prints a formatted console table for a list of items."""
     print(f"\n=== {section_title} ===")
+    if intro:
+        print(intro)
     if not items:
         print(empty_message)
         return
@@ -521,6 +524,26 @@ tbody tr:nth-child(even) { background: var(--light); }
 .changes li.removed { border-left-color: var(--danger); }
 .changes li.changed { border-left-color: var(--warning); }
 .no-changes { color: var(--success); font-weight: 600; }
+.latest-release {
+    display: inline-flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.4rem 0.9rem;
+    background: white;
+    border: 1px solid var(--cool-gray);
+    border-left: 5px solid var(--azure);
+    border-radius: var(--radius);
+    padding: 0.7rem 1.2rem;
+    margin: 0 0 1rem;
+}
+.latest-release .label {
+    color: var(--steel);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.latest-release .value { color: var(--navy); font-size: 1.9rem; font-weight: 700; line-height: 1.1; }
 """
 
 
@@ -586,14 +609,14 @@ def render_html(data: dict, changes: list[str], has_last: bool) -> str:
         f'Source: <a href="{_esc(cm_support.get("homepage", ""))}" target="_blank" rel="noopener">CipherTrust Manager Release Model</a>'
     )
 
+    cm_latest = (
+        '<div class="latest-release"><span class="label">Latest CipherTrust Manager release</span>'
+        f'<span class="value">{_esc(cm_support.get("latest_release", "Unknown"))}</span></div>'
+    )
+    # Shown between a section's heading and its table
+    section_leads = {"CipherTrust Manager Release Support": cm_latest}
+
     sections = [
-        (
-            "CipherTrust Data Security Platform (CDSP)",
-            data.get("ciphertrust_products", []),
-            [("title", "Name"), ("version", "Version"), ("homepage", "Docs")],
-            "No CipherTrust products found.",
-            "",
-        ),
         (
             "CipherTrust Manager Release Support",
             cm_support.get("lts_releases", []),
@@ -601,6 +624,13 @@ def render_html(data: dict, changes: list[str], has_last: bool) -> str:
              ("support_until", "Support Until"), ("homepage", "Docs")],
             "No LTS releases found (the release model page wording may have changed).",
             cm_note,
+        ),
+        (
+            "CipherTrust Data Security Platform (CDSP)",
+            data.get("ciphertrust_products", []),
+            [("title", "Name"), ("version", "Version"), ("homepage", "Docs")],
+            "No CipherTrust products found.",
+            "",
         ),
         (
             "CipherTrust Transparent Encryption (CTE)",
@@ -631,6 +661,8 @@ def render_html(data: dict, changes: list[str], has_last: bool) -> str:
     body_parts = []
     for title, items, columns, empty_message, note_html in sections:
         body_parts.append(f'<h2 class="section-title">{_esc(title)}</h2>')
+        if title in section_leads:
+            body_parts.append(section_leads[title])
         body_parts.append(_html_table(items, columns, empty_message))
         if note_html:
             body_parts.append(f'<p class="section-note">{note_html}</p>')
@@ -700,6 +732,10 @@ def main():
     # 1b. CipherTrust Manager LTS support dates and end-of-support versions
     print("Fetching CipherTrust Manager release support...", file=sys.stderr)
     cm_support = fetch_cm_release_support()
+    cm_product = next((p for p in cdsp_products if p.get("title") == "CipherTrust Manager"), None)
+    cm_support["latest_release"] = (
+        cm_product["version"].replace("(latest)", "").strip() if cm_product else "Unknown"
+    )
 
     # 2. Scraping CipherTrust Transparent Encryption (CTE) Component Versions
     print("Fetching CipherTrust Transparent Encryption (CTE) component versions...", file=sys.stderr)
@@ -767,7 +803,19 @@ def main():
     if args.format == "markdown":
         print("# Thales CipherTrust, CTE, Luna HSM, & DSF Product Versions\n")
         
-        print("## CipherTrust Data Security Platform (CDSP)")
+        print("## CipherTrust Manager Release Support")
+        print(f"> ### Latest release: {cm_support['latest_release']}\n")
+        if cm_support["lts_releases"]:
+            print("| LTS Release | Notes | Scheduled Patches Until | Support Until |")
+            print("|---|---|---|---|")
+            for r in cm_support["lts_releases"]:
+                print(f"| {r['title']} | {r['note']} | {r['patches_until']} | {r['support_until']} |")
+        else:
+            print("No LTS releases found (the release model page wording may have changed).")
+        print(f"\n**End of support:** {', '.join(cm_support['end_of_support']) or 'Unknown'}")
+        print(f"Source: [CipherTrust Manager Release Model]({cm_support['homepage']})")
+
+        print("\n## CipherTrust Data Security Platform (CDSP)")
         if args.show_urls:
             print("| Name | Version | URL |")
             print("|---|---|---|")
@@ -778,17 +826,6 @@ def main():
             print("|---|---|")
             for p in cdsp_products:
                 print(f"| {p['title']} | {p['version']} |")
-
-        print("\n## CipherTrust Manager Release Support")
-        if cm_support["lts_releases"]:
-            print("| LTS Release | Notes | Scheduled Patches Until | Support Until |")
-            print("|---|---|---|---|")
-            for r in cm_support["lts_releases"]:
-                print(f"| {r['title']} | {r['note']} | {r['patches_until']} | {r['support_until']} |")
-        else:
-            print("No LTS releases found (the release model page wording may have changed).")
-        print(f"\n**End of support:** {', '.join(cm_support['end_of_support']) or 'Unknown'}")
-        print(f"Source: [CipherTrust Manager Release Model]({cm_support['homepage']})")
 
         print("\n## CipherTrust Transparent Encryption (CTE)")
         if args.show_urls:
@@ -831,6 +868,17 @@ def main():
     else:
         # Table output
         print_table(
+            "CIPHERTRUST MANAGER RELEASE SUPPORT",
+            cm_support["lts_releases"],
+            ["title", "patches_until", "support_until"],
+            ["LTS Release", "Scheduled Patches Until", "Support Until"],
+            args.show_urls,
+            "No LTS releases found (the release model page wording may have changed).",
+            intro=f">>> LATEST RELEASE: {cm_support['latest_release']} <<<\n",
+        )
+        print(f"End of support: {', '.join(cm_support['end_of_support']) or 'Unknown'}")
+
+        print_table(
             "CIPHERTRUST DATA SECURITY PLATFORM (CDSP)",
             cdsp_products,
             ["title", "version"],
@@ -838,16 +886,6 @@ def main():
             args.show_urls,
             "No CipherTrust products found."
         )
-
-        print_table(
-            "CIPHERTRUST MANAGER RELEASE SUPPORT",
-            cm_support["lts_releases"],
-            ["title", "patches_until", "support_until"],
-            ["LTS Release", "Scheduled Patches Until", "Support Until"],
-            args.show_urls,
-            "No LTS releases found (the release model page wording may have changed)."
-        )
-        print(f"End of support: {', '.join(cm_support['end_of_support']) or 'Unknown'}")
 
         print_table(
             "CIPHERTRUST TRANSPARENT ENCRYPTION (CTE)",

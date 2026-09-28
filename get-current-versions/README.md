@@ -13,7 +13,7 @@ A lightweight Python scraping utility that automatically fetches, tracks, and lo
 ## Features
 
 -   **Dynamic CDSP Discovery**: Queries the Zoomin categories tree API to dynamically locate all current CDSP products on `docs-cybersec.thalesgroup.com`.
--   **CipherTrust Manager Release Support**: Parses the CipherTrust Manager release model page for the current LTS releases (scheduled-patch and support end dates) and the list of versions that have reached end of support, and reports changes to either.
+-   **CipherTrust Manager Release Support**: Parses the CipherTrust Manager release model page for the current LTS releases (scheduled-patch and support end dates) and the list of versions that have reached end of support, and reports changes to either. Shown first in every output format, with the current latest CipherTrust Manager release (taken from the CDSP product list).
 -   **Granular CTE Version Scraping**: Fetches OS-specific patch release versions and release dates directly from dedicated release notes pages for:
     -   CTE for Windows
     -   CTE for Linux
@@ -169,7 +169,8 @@ When the script runs, it manages database state in the current working directory
       }
     ],
     "end_of_support": ["2.10.x and older", "2.12.x", "2.13.x", "2.14.x"],
-    "homepage": "https://docs-cybersec.thalesgroup.com/bundle/latest-cdsp-cm/page/admin/cm_admin/cm_release_model/index.html"
+    "homepage": "https://docs-cybersec.thalesgroup.com/bundle/latest-cdsp-cm/page/admin/cm_admin/cm_release_model/index.html",
+    "latest_release": "v2.24"
   },
   "cte_components": [
     {
