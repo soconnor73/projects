@@ -395,7 +395,6 @@ def fetch_dsf_components() -> list[dict[str, str]]:
         except Exception as e:
             print(f"Error fetching DSF component {title}: {e}", file=sys.stderr)
             components.append({"title": title, "version": f"Error: {e}", "date": "", "notes": "", "homepage": DSF_OVERVIEW_URL})
-    components.append(fetch_dspm_component())
     return components
 
 DSPM_TITLE = "Data Security Posture Management (DSPM)"
@@ -798,6 +797,13 @@ def render_html(data: dict, changes: list[str], has_last: bool) -> str:
             'Each DSF component is versioned and released independently. Release and end-of-life dates: see '
             f'<a href="{_esc(DSF_SUPPORTED_VERSIONS_URL)}" target="_blank" rel="noopener">DSF supported versions</a> (support login required).',
         ),
+        (
+            "Data Security Posture Management (DSPM)",
+            data.get("dspm_components", []),
+            [("title", "Name"), ("version", "Version"), ("date", "Release Date"), ("notes", "Notes"), ("homepage", "Docs")],
+            "No DSPM releases found.",
+            "DSPM is pre-release; releases are named by date rather than version.",
+        ),
     ]
 
     body_parts = []
@@ -835,7 +841,7 @@ def render_html(data: dict, changes: list[str], has_last: bool) -> str:
         "</head>\n<body>\n"
         f'<header class="topbar">{_logo_img()}'
         '<span class="brand">Thales Product Versions</span>'
-        '<span class="tagline">CDSP &middot; CTE &middot; Luna HSM &middot; DSF</span></header>\n'
+        '<span class="tagline">CDSP &middot; CTE &middot; Luna HSM &middot; DSF &middot; DSPM</span></header>\n'
         '<main class="wrap">\n'
         "<h1>Current Product Versions</h1>\n"
         f'<p class="meta">Generated {_esc(ts_display)}</p>\n'
@@ -845,7 +851,7 @@ def render_html(data: dict, changes: list[str], has_last: bool) -> str:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Get current product version numbers for Thales CipherTrust (CDSP), CipherTrust Transparent Encryption (CTE), Luna HSM, and DSF products.")
+    parser = argparse.ArgumentParser(description="Get current product version numbers for Thales CipherTrust (CDSP), CipherTrust Transparent Encryption (CTE), Luna HSM, DSF, and DSPM products.")
     parser.add_argument("-v", "--version", action="version", version=f"%(prog)s {__version__}",
                         help="Show program's version number and exit")
     parser.add_argument("-f", "--format", choices=["table", "markdown"], default="table",
@@ -897,6 +903,10 @@ def main():
     # Sort alphabetically by component title
     dsf_components.sort(key=lambda x: x.get("title", "").lower())
 
+    # 4b. Data Security Posture Management (DSPM), a separate product from DSF
+    print("Fetching Data Security Posture Management (DSPM) release notes...", file=sys.stderr)
+    dspm_components = [fetch_dspm_component()]
+
     # 5. Save JSON and Manage History
     current_file = "current.json"
     last_file = "last.json"
@@ -914,7 +924,8 @@ def main():
         "cm_release_support": cm_support,
         "cte_components": cte_components,
         "luna_hsm_components": luna_components,
-        "dsf_components": dsf_components
+        "dsf_components": dsf_components,
+        "dspm_components": dspm_components
     }
 
     try:
@@ -938,12 +949,13 @@ def main():
             changes.extend(detect_changes(last_data.get("cte_components", []), cte_components, "CTE Component", has_date=True))
             changes.extend(detect_changes(last_data.get("luna_hsm_components", []), luna_components, "Luna HSM Component", has_date=True))
             changes.extend(detect_changes(last_data.get("dsf_components", []), dsf_components, "DSF Component", has_date=True))
+            changes.extend(detect_changes(last_data.get("dspm_components", []), dspm_components, "DSPM", has_date=True))
         except Exception as e:
             print(f"Error comparing current and last versions: {e}", file=sys.stderr)
 
     # 7. Display Formatted CLI Output
     if args.format == "markdown":
-        print("# Thales CipherTrust, CTE, Luna HSM, & DSF Product Versions\n")
+        print("# Thales CipherTrust, CTE, Luna HSM, DSF, & DSPM Product Versions\n")
         
         print("## CipherTrust Manager Release Support")
         print(f"> ### Latest release: {cm_support['latest_release']}\n")
@@ -1007,6 +1019,18 @@ def main():
             for d in dsf_components:
                 print(f"| {d['title']} | {d['version']} | {d['date']} | {d['notes']} |")
         print(f"\nRelease and end-of-life dates: [DSF supported versions]({DSF_SUPPORTED_VERSIONS_URL}) (support login required)")
+
+        print("\n## Data Security Posture Management (DSPM)")
+        if args.show_urls:
+            print("| Name | Version | Release Date | Notes | URL |")
+            print("|---|---|---|---|---|")
+            for d in dspm_components:
+                print(f"| {d['title']} | {d['version']} | {d['date']} | {d['notes']} | [Release Notes]({d['homepage']}) |")
+        else:
+            print("| Name | Version | Release Date | Notes |")
+            print("|---|---|---|---|")
+            for d in dspm_components:
+                print(f"| {d['title']} | {d['version']} | {d['date']} | {d['notes']} |")
             
     else:
         # Table output
@@ -1059,6 +1083,15 @@ def main():
             "No DSF components found."
         )
         print(f"DSF supported versions (release/end-of-life dates, login required): {DSF_SUPPORTED_VERSIONS_URL}")
+
+        print_table(
+            "DATA SECURITY POSTURE MANAGEMENT (DSPM)",
+            dspm_components,
+            ["title", "version", "date", "notes"],
+            ["Name", "Version", "Release Date", "Notes"],
+            args.show_urls,
+            "No DSPM releases found."
+        )
 
     # 8. Display Change Detection Results
     if os.path.exists(last_file):
