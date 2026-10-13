@@ -395,7 +395,48 @@ def fetch_dsf_components() -> list[dict[str, str]]:
         except Exception as e:
             print(f"Error fetching DSF component {title}: {e}", file=sys.stderr)
             components.append({"title": title, "version": f"Error: {e}", "date": "", "notes": "", "homepage": DSF_OVERVIEW_URL})
+    components.append(fetch_dspm_component())
     return components
+
+DSPM_TITLE = "Data Security Posture Management (DSPM)"
+DSPM_BUNDLE = "ds-dspm-dspm-docs"
+DSPM_RELEASE_NOTES_PAGE = "release-notes/index.html"
+
+def fetch_dspm_component() -> dict[str, str]:
+    """
+    DSPM is pre-release and names each release by date ("September 23, 2026",
+    "July 29, 2026 (MVP)") rather than by version. Report the newest dated release;
+    if release titles start carrying a version number (e.g. after GA), use that instead.
+    """
+    homepage = f"{PORTAL_HOST}/bundle/{DSPM_BUNDLE}/page/{DSPM_RELEASE_NOTES_PAGE}"
+    try:
+        html = get_json(f"{API_HOST}/api/bundle/{DSPM_BUNDLE}/page/{DSPM_RELEASE_NOTES_PAGE}").get("topic_html") or ""
+        releases = []
+        for href, label in re.findall(r'<a[^>]+href="([^"]+)"[^>]*>(.*?)</a>', html, re.DOTALL):
+            label = _html_text(label)
+            m = re.search(r"[A-Z][a-z]+ \d{1,2}, \d{4}", label)
+            if not m or "/release-notes/" not in href:
+                continue
+            try:
+                when = datetime.strptime(m.group(0), "%B %d, %Y")
+            except ValueError:
+                continue
+            releases.append((when, label, m.group(0), href))
+        if not releases:
+            raise LookupError("no dated releases on the release notes page")
+        _, label, date, href = max(releases)
+        version = re.search(r"\bv?\d+(?:\.\d+)+\b", label.replace(date, ""))
+        page = href.split(f"/bundle/{DSPM_BUNDLE}/page/", 1)[-1]
+        return {
+            "title": DSPM_TITLE,
+            "version": version.group(0) if version else "Pre-release",
+            "date": date,
+            "notes": "" if version else "Releases are dated, not versioned",
+            "homepage": f"{PORTAL_HOST}/bundle/{DSPM_BUNDLE}/page/{page}",
+        }
+    except Exception as e:
+        print(f"Error fetching DSF component {DSPM_TITLE}: {e}", file=sys.stderr)
+        return {"title": DSPM_TITLE, "version": f"Error: {e}", "date": "", "notes": "", "homepage": homepage}
 
 def fetch_cm_release_support() -> dict:
     """

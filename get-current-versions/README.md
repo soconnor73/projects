@@ -21,7 +21,7 @@ A lightweight Python scraping utility that automatically fetches, tracks, and lo
     -   CTE UserSpace (CTE-U)
     -   CTE for Kubernetes (CTE-K8s)
 -   **Luna HSM Table Scraping**: Scrapes the component version grid directly from the MadCap Flare static homepage on `thalesdocs.com`.
--   **DSF Component Scraping**: Fetches the dynamic JSON topic data for the DSF integration page from the backend API to scrape its product versions table.
+-   **DSF Component Scraping**: Each DSF component (DAM, DRA, DSF Hub, FAM, Imperva Data Protection Agent) publishes one release-notes bundle per release (`v15.4-dam-release-notes`, …). The scraper probes for the newest bundle and reads its latest patch, release date, and notes (e.g. the DSF Hub LTS version). Data Security Posture Management (DSPM) is pre-release and names releases by date, so it is reported as `Pre-release` with the newest release date; if release titles start carrying a version number (e.g. after GA), that version is used instead.
 -   **CTE Compatibility Links**: The CTE section links to the CTE Compatibility Matrix (pre-filtered to RHEL 10) and to the CipherTrust Manager ↔ CTE compatible-versions view.
 -   **Change Detection**: Compares the scraped versions from the current run against the previous execution's state, detailing additions, removals, and version number/release date changes.
 -   **State History**: Automatically archives the previous run to `last.json` and saves the current state to `current.json` with an ISO 8601 creation timestamp.
@@ -214,9 +214,11 @@ When the script runs, it manages database state in the current working directory
   ],
   "dsf_components": [
     {
-      "title": "DAM",
-      "version": "v15.4",
-      "homepage": "https://docs-cybersec.thalesgroup.com/bundle/v1-data-security-overview-and-integration-guide/page/78571.htm"
+      "title": "Data Risk Analytics (DRA)",
+      "version": "v15.4.0.40 (Patch 40)",
+      "date": "September 22, 2026",
+      "notes": "",
+      "homepage": "https://docs-cybersec.thalesgroup.com/bundle/v15.4-dra-release-notes/page/main-page.htm"
     }
   ]
 }
