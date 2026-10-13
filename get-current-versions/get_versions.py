@@ -267,6 +267,92 @@ def fetch_luna_hsm_components() -> list[dict[str, str]]:
         print(f"Error fetching Luna HSM components: {e}", file=sys.stderr)
         return []
 
+LUNA_FIPS_URL = "https://www.thalesdocs.com/gphsm/luna/7/docs/network/Content/compliance/fips.htm"
+NIST_CERT_URL = "https://csrc.nist.gov/projects/cryptographic-module-validation-program/certificate/{}"
+
+def _fw_key(version: str) -> tuple[int, ...]:
+    """Sort key for firmware versions such as 7.7.1-20."""
+    return tuple(int(n) for n in re.findall(r"\d+", version))
+
+def parse_luna_fips(html: str) -> list[dict[str, str]]:
+    """
+    Parse the "Install Only FIPS-Validated Firmware" lists on the Luna FIPS compliance page:
+    a heading per standard and product ("FIPS 140-3 Level 3 Certified Luna HSM Firmware Versions"),
+    then per NIST certificate ("... certified per certificate #4684:") a list of
+    "Luna HSM Firmware 7.8.5 (recommended)" entries. One row per certificate.
+    """
+    text = re.sub(r"(?i)<br\s*/?>|</(p|li|h\d|div|tr|td)>", "\n", html)
+    lines = [_html_text(line) for line in re.sub(r"<[^>]+>", " ", text).split("\n")]
+    certs, standard, product = [], "", ""
+    for line in lines:
+        if line.startswith("Configuring the HSM"):
+            break
+        heading = re.search(r"FIPS (140-\d) Level (\d) Certified (Luna .+?) Firmware Versions", line)
+        if heading:
+            standard = f"FIPS {heading.group(1)} Level {heading.group(2)}"
+            product = f"{heading.group(3)} Firmware"
+            continue
+        cert = re.search(r"certified per (?:NIST )?certificate #(\d+)", line)
+        if cert and product:
+            certs.append({"product": product, "standard": standard, "certificate": cert.group(1), "versions": [], "recommended": ""})
+            continue
+        if certs and product:
+            fw = re.match(rf"\W*{re.escape(product)} (\d+(?:\.\d+)+(?:-\d+)?)(\s*\(recommended\))?", line)
+            if fw:
+                certs[-1]["versions"].append(fw.group(1))
+                if fw.group(2):
+                    certs[-1]["recommended"] = fw.group(1)
+    rows = []
+    for c in certs:
+        versions = sorted(c["versions"], key=_fw_key, reverse=True)
+        if not versions:
+            continue
+        rows.append({
+            "title": f"{c['product']} (cert #{c['certificate']})",
+            "product": c["product"],
+            "standard": c["standard"],
+            "certificate": f"#{c['certificate']}",
+            "version": ", ".join(versions),
+            "latest_validated": versions[0],
+            "recommended": c["recommended"],
+            "homepage": NIST_CERT_URL.format(c["certificate"]),
+        })
+    return rows
+
+def fetch_luna_fips() -> list[dict[str, str]]:
+    """FIPS-validated Luna HSM and Luna Backup HSM firmware versions, one row per NIST certificate."""
+    try:
+        req = urllib.request.Request(LUNA_FIPS_URL, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, context=ctx, timeout=15) as response:
+            html = response.read().decode('utf-8', errors='ignore')
+        rows = parse_luna_fips(html)
+        if not rows:
+            raise LookupError("no FIPS-validated firmware lists found (the page wording may have changed)")
+        return rows
+    except Exception as e:
+        print(f"Error fetching Luna FIPS certifications: {e}", file=sys.stderr)
+        return []
+
+def luna_fips_summary(fips_rows: list[dict[str, str]], luna_components: list[dict[str, str]]) -> list[str]:
+    """
+    One line per firmware product comparing its latest release with its newest FIPS-validated
+    version, e.g. "Luna HSM Firmware: latest release 7.9.3 is not FIPS-validated; newest validated
+    is 7.8.5 (FIPS 140-3 Level 3, cert #4684)".
+    """
+    lines = []
+    for product in dict.fromkeys(r["product"] for r in fips_rows):
+        rows = [r for r in fips_rows if r["product"] == product]
+        newest = max(rows, key=lambda r: _fw_key(r["latest_validated"]))
+        validated = f"{newest['latest_validated']} ({newest['standard']}, cert {newest['certificate']})"
+        latest = next((c["version"] for c in luna_components if c["title"] == product), None)
+        if not latest:
+            lines.append(f"{product}: newest FIPS-validated version is {validated}")
+        elif any(latest in r["version"].split(", ") for r in rows):
+            lines.append(f"{product}: latest release {latest} is FIPS-validated ({newest['standard']}, cert {newest['certificate']})")
+        else:
+            lines.append(f"{product}: latest release {latest} is not FIPS-validated; newest validated is {validated}")
+    return lines
+
 def _html_text(fragment: str) -> str:
     """Strip tags and collapse whitespace from an HTML fragment."""
     return html_lib.unescape(re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", fragment))).replace("\ufeff", "").strip()
@@ -733,11 +819,11 @@ def _html_table(
     rows = []
     for item in items:
         cells = []
-        for key, _ in columns:
+        for key, header in columns:
             if key == "homepage":
                 url = item.get("homepage", "")
                 cells.append(
-                    f'<td><a href="{_esc(url)}" target="_blank" rel="noopener">Docs</a></td>'
+                    f'<td><a href="{_esc(url)}" target="_blank" rel="noopener">{_esc(header)}</a></td>'
                     if url else "<td></td>"
                 )
             else:
@@ -772,7 +858,19 @@ def render_html(data: dict, changes: list[str], has_last: bool) -> str:
         f'<span class="value">{_esc(cm_support.get("latest_release", "Unknown"))}</span></div>'
     )
     # Shown between a section's heading and its table
-    section_leads = {"CipherTrust Manager Release Support": cm_latest}
+    fips_summary = data.get("luna_fips_summary", [])
+    fips_lead = (
+        '<ul class="changes">'
+        + "".join(
+            f'<li class="{"changed" if "not FIPS-validated" in line else "added"}">{_esc(line)}</li>'
+            for line in fips_summary
+        )
+        + "</ul>"
+    ) if fips_summary else ""
+    section_leads = {
+        "CipherTrust Manager Release Support": cm_latest,
+        "Luna HSM FIPS Certification": fips_lead,
+    }
 
     sections = [
         (
@@ -806,6 +904,15 @@ def render_html(data: dict, changes: list[str], has_last: bool) -> str:
             [("title", "Name"), ("version", "Version"), ("date", "Release Date"), ("homepage", "Docs")],
             "No Luna HSM components found.",
             "",
+        ),
+        (
+            "Luna HSM FIPS Certification",
+            data.get("luna_fips_certifications", []),
+            [("product", "Firmware"), ("standard", "FIPS Standard"), ("certificate", "Certificate"),
+             ("version", "Validated Versions"), ("recommended", "Recommended"), ("homepage", "NIST")],
+            "No FIPS-validated firmware found (the FIPS compliance page wording may have changed).",
+            'Only the HSM firmware version affects FIPS compliance. Source: '
+            f'<a href="{_esc(LUNA_FIPS_URL)}" target="_blank" rel="noopener">Luna FIPS Compliance</a>.',
         ),
         (
             "Data Security Fabric (DSF)",
@@ -922,6 +1029,11 @@ def main():
     # Sort alphabetically by component title
     luna_components.sort(key=lambda x: x.get("title", "").lower())
 
+    # 3b. FIPS-validated Luna firmware, compared with the latest firmware releases
+    print("Fetching Luna HSM FIPS certifications...", file=sys.stderr)
+    luna_fips = fetch_luna_fips()
+    fips_summary = luna_fips_summary(luna_fips, luna_components)
+
     # 4. Scraping Data Security Fabric (DSF) Component Versions
     print("Fetching Data Security Fabric (DSF) component release notes...", file=sys.stderr)
     dsf_components = fetch_dsf_components()
@@ -953,6 +1065,8 @@ def main():
         "cm_release_support": cm_support,
         "cte_components": cte_components,
         "luna_hsm_components": luna_components,
+        "luna_fips_certifications": luna_fips,
+        "luna_fips_summary": fips_summary,
         "dsf_components": dsf_components,
         "dspm_components": dspm_components,
         "aisf_components": aisf_components
@@ -978,6 +1092,7 @@ def main():
                 changes.extend(detect_cm_support_changes(last_data["cm_release_support"], cm_support))
             changes.extend(detect_changes(last_data.get("cte_components", []), cte_components, "CTE Component", has_date=True))
             changes.extend(detect_changes(last_data.get("luna_hsm_components", []), luna_components, "Luna HSM Component", has_date=True))
+            changes.extend(detect_changes(last_data.get("luna_fips_certifications", []), luna_fips, "Luna FIPS Certificate"))
             changes.extend(detect_changes(last_data.get("dsf_components", []), dsf_components, "DSF Component", has_date=True))
             changes.extend(detect_changes(last_data.get("dspm_components", []), dspm_components, "DSPM", has_date=True))
             changes.extend(detect_changes(last_data.get("aisf_components", []), aisf_components, "AISF", has_date=True))
@@ -1037,6 +1152,20 @@ def main():
             print("|---|---|---|")
             for c in luna_components:
                 print(f"| {c['title']} | {c['version']} | {c['date']} |")
+
+        print("\n## Luna HSM FIPS Certification")
+        for line in fips_summary:
+            print(f"- {line}")
+        if luna_fips:
+            print()
+            print("| Firmware | FIPS Standard | Certificate | Validated Versions | Recommended |")
+            print("|---|---|---|---|---|")
+            for f in luna_fips:
+                cert = f"[{f['certificate']}]({f['homepage']})" if args.show_urls else f["certificate"]
+                print(f"| {f['product']} | {f['standard']} | {cert} | {f['version']} | {f['recommended']} |")
+        else:
+            print("No FIPS-validated firmware found (the FIPS compliance page wording may have changed).")
+        print(f"\nOnly the HSM firmware version affects FIPS compliance. Source: [Luna FIPS Compliance]({LUNA_FIPS_URL})")
 
         print("\n## Data Security Fabric (DSF)")
         if args.show_urls:
@@ -1116,6 +1245,17 @@ def main():
             args.show_urls,
             "No Luna HSM components found."
         )
+
+        print_table(
+            "LUNA HSM FIPS CERTIFICATION",
+            luna_fips,
+            ["product", "standard", "certificate", "version", "recommended"],
+            ["Firmware", "FIPS Standard", "Certificate", "Validated Versions", "Recommended"],
+            args.show_urls,
+            "No FIPS-validated firmware found (the FIPS compliance page wording may have changed).",
+            intro="\n".join(fips_summary) + "\n" if fips_summary else "",
+        )
+        print(f"Luna FIPS Compliance (only HSM firmware affects FIPS): {LUNA_FIPS_URL}")
 
         print_table(
             "DATA SECURITY FABRIC (DSF)",
