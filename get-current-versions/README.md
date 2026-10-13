@@ -8,6 +8,7 @@ A lightweight Python scraping utility that automatically fetches, tracks, and lo
 3.  **Luna Network HSM 7** components.
 4.  **Data Security Fabric (DSF)** components.
 5.  **Data Security Posture Management (DSPM)** (pre-release).
+6.  **AI Security Fabric (AISF)** (pre-release).
 
 ---
 
@@ -23,7 +24,7 @@ A lightweight Python scraping utility that automatically fetches, tracks, and lo
     -   CTE for Kubernetes (CTE-K8s)
 -   **Luna HSM Table Scraping**: Scrapes the component version grid directly from the MadCap Flare static homepage on `thalesdocs.com`.
 -   **DSF Component Scraping**: Each DSF component (DAM, DRA, DSF Hub, FAM, Imperva Data Protection Agent) publishes one release-notes bundle per release (`v15.4-dam-release-notes`, …). The scraper probes for the newest bundle and reads its latest patch, release date, and notes (e.g. the DSF Hub LTS version).
--   **DSPM Release Tracking**: Data Security Posture Management (DSPM), a separate product with its own section, is pre-release and names releases by date, so it is reported as `Pre-release` with the newest release date; if release titles start carrying a version number (e.g. after GA), that version is used instead.
+-   **DSPM and AISF Release Tracking**: Data Security Posture Management (DSPM) and AI Security Fabric (AISF) are separate pre-release products, each with its own section. Their release notes name releases by date, so each is reported as `Pre-release` with its newest release date, plus any tag on that release such as "controlled availability" in the notes; if release titles start carrying a version number (e.g. after GA), that version is used instead.
 -   **CTE Compatibility Links**: The CTE section links to the CTE Compatibility Matrix (pre-filtered to RHEL 10) and to the CipherTrust Manager ↔ CTE compatible-versions view.
 -   **Change Detection**: Compares the scraped versions from the current run against the previous execution's state, detailing additions, removals, and version number/release date changes.
 -   **State History**: Automatically archives the previous run to `last.json` and saves the current state to `current.json` with an ISO 8601 creation timestamp.
@@ -55,7 +56,7 @@ cd projects/get-current-versions
 Execute the script from your terminal using Python:
 
 ### 1. Default Run (Recommended)
-Displays a clean, sorted text table of all CipherTrust, CTE, Luna, DSF, and DSPM products. Automatically saves the full JSON data to `current.json` (archiving any existing state to `last.json`) and prints detected version changes.
+Displays a clean, sorted text table of all CipherTrust, CTE, Luna, DSF, DSPM, and AISF products. Automatically saves the full JSON data to `current.json` (archiving any existing state to `last.json`) and prints detected version changes.
 ```bash
 python get_versions.py
 ```

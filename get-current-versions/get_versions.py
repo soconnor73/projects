@@ -397,24 +397,31 @@ def fetch_dsf_components() -> list[dict[str, str]]:
             components.append({"title": title, "version": f"Error: {e}", "date": "", "notes": "", "homepage": DSF_OVERVIEW_URL})
     return components
 
+# Pre-release products whose release notes name each release by date rather than version.
 DSPM_TITLE = "Data Security Posture Management (DSPM)"
 DSPM_BUNDLE = "ds-dspm-dspm-docs"
 DSPM_RELEASE_NOTES_PAGE = "release-notes/index.html"
+AISF_TITLE = "AI Security Fabric (AISF)"
+AISF_BUNDLE = "ds-ai-securityfabric-docs"
+AISF_RELEASE_NOTES_PAGE = "release_notes/index.html"
 
-def fetch_dspm_component() -> dict[str, str]:
+def fetch_dated_release(title: str, bundle: str, index_page: str) -> dict[str, str]:
     """
-    DSPM is pre-release and names each release by date ("September 23, 2026",
-    "July 29, 2026 (MVP)") rather than by version. Report the newest dated release;
-    if release titles start carrying a version number (e.g. after GA), use that instead.
+    Report the newest release linked from a release-notes index whose releases are
+    named by date ("September 23, 2026", "July 29, 2026 (MVP)",
+    "September 29, 2026 (controlled availability)"). A parenthesised tag goes into
+    the notes. If release titles start carrying a version number (e.g. after GA),
+    that version is reported instead of "Pre-release".
     """
-    homepage = f"{PORTAL_HOST}/bundle/{DSPM_BUNDLE}/page/{DSPM_RELEASE_NOTES_PAGE}"
+    homepage = f"{PORTAL_HOST}/bundle/{bundle}/page/{index_page}"
+    release_dir = f"/page/{index_page.rsplit('/', 1)[0]}/"
     try:
-        html = get_json(f"{API_HOST}/api/bundle/{DSPM_BUNDLE}/page/{DSPM_RELEASE_NOTES_PAGE}").get("topic_html") or ""
+        html = get_json(f"{API_HOST}/api/bundle/{bundle}/page/{index_page}").get("topic_html") or ""
         releases = []
         for href, label in re.findall(r'<a[^>]+href="([^"]+)"[^>]*>(.*?)</a>', html, re.DOTALL):
             label = _html_text(label)
             m = re.search(r"[A-Z][a-z]+ \d{1,2}, \d{4}", label)
-            if not m or "/release-notes/" not in href:
+            if not m or release_dir not in href:
                 continue
             try:
                 when = datetime.strptime(m.group(0), "%B %d, %Y")
@@ -424,18 +431,29 @@ def fetch_dspm_component() -> dict[str, str]:
         if not releases:
             raise LookupError("no dated releases on the release notes page")
         _, label, date, href = max(releases)
-        version = re.search(r"\bv?\d+(?:\.\d+)+\b", label.replace(date, ""))
-        page = href.split(f"/bundle/{DSPM_BUNDLE}/page/", 1)[-1]
+        rest = label.replace(date, "")
+        version = re.search(r"\bv?\d+(?:\.\d+)+\b", rest)
+        notes = re.findall(r"\(([^)]+)\)", rest)
+        if not version:
+            notes.append("releases are dated, not versioned")
+        notes = "; ".join(notes)
+        page = href.split(f"/bundle/{bundle}/page/", 1)[-1]
         return {
-            "title": DSPM_TITLE,
+            "title": title,
             "version": version.group(0) if version else "Pre-release",
             "date": date,
-            "notes": "" if version else "Releases are dated, not versioned",
-            "homepage": f"{PORTAL_HOST}/bundle/{DSPM_BUNDLE}/page/{page}",
+            "notes": notes[:1].upper() + notes[1:],
+            "homepage": f"{PORTAL_HOST}/bundle/{bundle}/page/{page}",
         }
     except Exception as e:
-        print(f"Error fetching DSF component {DSPM_TITLE}: {e}", file=sys.stderr)
-        return {"title": DSPM_TITLE, "version": f"Error: {e}", "date": "", "notes": "", "homepage": homepage}
+        print(f"Error fetching {title}: {e}", file=sys.stderr)
+        return {"title": title, "version": f"Error: {e}", "date": "", "notes": "", "homepage": homepage}
+
+def fetch_dspm_component() -> dict[str, str]:
+    return fetch_dated_release(DSPM_TITLE, DSPM_BUNDLE, DSPM_RELEASE_NOTES_PAGE)
+
+def fetch_aisf_component() -> dict[str, str]:
+    return fetch_dated_release(AISF_TITLE, AISF_BUNDLE, AISF_RELEASE_NOTES_PAGE)
 
 def fetch_cm_release_support() -> dict:
     """
@@ -804,6 +822,13 @@ def render_html(data: dict, changes: list[str], has_last: bool) -> str:
             "No DSPM releases found.",
             "DSPM is pre-release; releases are named by date rather than version.",
         ),
+        (
+            "AI Security Fabric (AISF)",
+            data.get("aisf_components", []),
+            [("title", "Name"), ("version", "Version"), ("date", "Release Date"), ("notes", "Notes"), ("homepage", "Docs")],
+            "No AISF releases found.",
+            "AISF is pre-release; releases are named by date rather than version.",
+        ),
     ]
 
     body_parts = []
@@ -841,7 +866,7 @@ def render_html(data: dict, changes: list[str], has_last: bool) -> str:
         "</head>\n<body>\n"
         f'<header class="topbar">{_logo_img()}'
         '<span class="brand">Thales Product Versions</span>'
-        '<span class="tagline">CDSP &middot; CTE &middot; Luna HSM &middot; DSF &middot; DSPM</span></header>\n'
+        '<span class="tagline">CDSP &middot; CTE &middot; Luna HSM &middot; DSF &middot; DSPM &middot; AISF</span></header>\n'
         '<main class="wrap">\n'
         "<h1>Current Product Versions</h1>\n"
         f'<p class="meta">Generated {_esc(ts_display)}</p>\n'
@@ -851,7 +876,7 @@ def render_html(data: dict, changes: list[str], has_last: bool) -> str:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Get current product version numbers for Thales CipherTrust (CDSP), CipherTrust Transparent Encryption (CTE), Luna HSM, DSF, and DSPM products.")
+    parser = argparse.ArgumentParser(description="Get current product version numbers for Thales CipherTrust (CDSP), CipherTrust Transparent Encryption (CTE), Luna HSM, DSF, DSPM, and AISF products.")
     parser.add_argument("-v", "--version", action="version", version=f"%(prog)s {__version__}",
                         help="Show program's version number and exit")
     parser.add_argument("-f", "--format", choices=["table", "markdown"], default="table",
@@ -907,6 +932,10 @@ def main():
     print("Fetching Data Security Posture Management (DSPM) release notes...", file=sys.stderr)
     dspm_components = [fetch_dspm_component()]
 
+    # 4c. AI Security Fabric (AISF)
+    print("Fetching AI Security Fabric (AISF) release notes...", file=sys.stderr)
+    aisf_components = [fetch_aisf_component()]
+
     # 5. Save JSON and Manage History
     current_file = "current.json"
     last_file = "last.json"
@@ -925,7 +954,8 @@ def main():
         "cte_components": cte_components,
         "luna_hsm_components": luna_components,
         "dsf_components": dsf_components,
-        "dspm_components": dspm_components
+        "dspm_components": dspm_components,
+        "aisf_components": aisf_components
     }
 
     try:
@@ -950,12 +980,13 @@ def main():
             changes.extend(detect_changes(last_data.get("luna_hsm_components", []), luna_components, "Luna HSM Component", has_date=True))
             changes.extend(detect_changes(last_data.get("dsf_components", []), dsf_components, "DSF Component", has_date=True))
             changes.extend(detect_changes(last_data.get("dspm_components", []), dspm_components, "DSPM", has_date=True))
+            changes.extend(detect_changes(last_data.get("aisf_components", []), aisf_components, "AISF", has_date=True))
         except Exception as e:
             print(f"Error comparing current and last versions: {e}", file=sys.stderr)
 
     # 7. Display Formatted CLI Output
     if args.format == "markdown":
-        print("# Thales CipherTrust, CTE, Luna HSM, DSF, & DSPM Product Versions\n")
+        print("# Thales CipherTrust, CTE, Luna HSM, DSF, DSPM, & AISF Product Versions\n")
         
         print("## CipherTrust Manager Release Support")
         print(f"> ### Latest release: {cm_support['latest_release']}\n")
@@ -1031,6 +1062,18 @@ def main():
             print("|---|---|---|---|")
             for d in dspm_components:
                 print(f"| {d['title']} | {d['version']} | {d['date']} | {d['notes']} |")
+
+        print("\n## AI Security Fabric (AISF)")
+        if args.show_urls:
+            print("| Name | Version | Release Date | Notes | URL |")
+            print("|---|---|---|---|---|")
+            for d in aisf_components:
+                print(f"| {d['title']} | {d['version']} | {d['date']} | {d['notes']} | [Release Notes]({d['homepage']}) |")
+        else:
+            print("| Name | Version | Release Date | Notes |")
+            print("|---|---|---|---|")
+            for d in aisf_components:
+                print(f"| {d['title']} | {d['version']} | {d['date']} | {d['notes']} |")
             
     else:
         # Table output
@@ -1091,6 +1134,15 @@ def main():
             ["Name", "Version", "Release Date", "Notes"],
             args.show_urls,
             "No DSPM releases found."
+        )
+
+        print_table(
+            "AI SECURITY FABRIC (AISF)",
+            aisf_components,
+            ["title", "version", "date", "notes"],
+            ["Name", "Version", "Release Date", "Notes"],
+            args.show_urls,
+            "No AISF releases found."
         )
 
     # 8. Display Change Detection Results
