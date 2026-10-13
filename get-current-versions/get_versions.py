@@ -1,4 +1,5 @@
 import urllib.request
+import urllib.error
 import json
 import ssl
 import re
@@ -266,35 +267,135 @@ def fetch_luna_hsm_components() -> list[dict[str, str]]:
         print(f"Error fetching Luna HSM components: {e}", file=sys.stderr)
         return []
 
+def _html_text(fragment: str) -> str:
+    """Strip tags and collapse whitespace from an HTML fragment."""
+    return html_lib.unescape(re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", fragment))).replace("\ufeff", "").strip()
+
+def _bundle_meta(bundle: str) -> dict | None:
+    """Bundle metadata, or None if the bundle is not published."""
+    try:
+        return get_json(f"{API_HOST}/api/bundle/{bundle}").get("bundle") or {}
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return None
+        raise
+
+def find_latest_versioned_bundle(family: str, floor: tuple[int, int]) -> tuple[str, str, dict] | None:
+    """
+    DSF docs are published as one bundle per release, named "v<major>.<minor>-<family>"
+    (e.g. v15.4-dam-release-notes). Starting from a release known to exist, probe the
+    next minor versions and the next major version until none is published.
+    Returns (bundle name, "major.minor", bundle metadata), or None if even the floor is missing.
+    """
+    major, minor = floor
+    meta = _bundle_meta(f"v{major}.{minor}-{family}")
+    if meta is None:
+        return None
+    while True:
+        for cand in ((major, minor + 1), (major, minor + 2), (major + 1, 0)):
+            cand_meta = _bundle_meta(f"v{cand[0]}.{cand[1]}-{family}")
+            if cand_meta is not None:
+                (major, minor), meta = cand, cand_meta
+                break
+        else:
+            return f"v{major}.{minor}-{family}", f"{major}.{minor}", meta
+
+def _toc_page(bundle: str, title_prefix: str) -> str | None:
+    """Return the nav_path of the first TOC entry whose title starts with title_prefix."""
+    def walk(entries):
+        for entry in entries:
+            if (entry.get("title") or "").lower().startswith(title_prefix.lower()):
+                return entry.get("nav_path")
+            found = walk(entry.get("childEntries") or [])
+            if found:
+                return found
+        return None
+    return walk(get_json(f"{API_HOST}/api/bundle/{bundle}/toc"))
+
+def _page_text(bundle: str, page: str) -> str:
+    return _html_text(get_json(f"{API_HOST}/api/bundle/{bundle}/page/{page}").get("topic_html") or "")
+
+# Data Security Fabric components, as listed under https://docs-cybersec.thalesgroup.com/category/DSF.
+# "floor" is a release known to be published; newer ones are found by probing upwards from it.
+# Data Risk Intelligence (DRI) is not listed: it ships inside DSF Hub and has no version of its own.
+DSF_SPECS = [
+    {"title": "Database Activity Monitoring (DAM)", "family": "dam-release-notes", "floor": (15, 4), "parser": "dam"},
+    {"title": "Data Risk Analytics (DRA)", "family": "dra-release-notes", "floor": (15, 4), "parser": "dra"},
+    {"title": "DSF Hub (formerly Sonar)", "family": "sonar-release-notes", "floor": (15, 4), "parser": "hub"},
+    {"title": "File Activity Monitoring (FAM)", "family": "fam-release-notes", "floor": (15, 4), "parser": None},
+    {"title": "Imperva Data Protection Agent", "family": "agent-release-notes", "floor": (15, 1), "parser": "agent"},
+]
+DSF_OVERVIEW_URL = f"{PORTAL_HOST}/bundle/v1-data-security-overview-and-integration-guide/page/78571.htm"
+# Release and end-of-life dates per component; needs a Thales/Imperva support login
+DSF_SUPPORTED_VERSIONS_URL = "https://docs.imperva.com/howto/ef7a7b0a"
+
+def _parse_dsf_release(parser: str | None, bundle: str, release: str, landing_page: str) -> dict[str, str]:
+    """Pull the latest patch, its date, and any notes out of one release-notes bundle."""
+    out = {"version": f"v{release}", "date": "", "notes": "", "page": landing_page}
+    if parser == "dam":
+        # "Features Released with v15.4 Patch 50", one heading per patch
+        page = _toc_page(bundle, "Features Released")
+        if page:
+            out["page"] = page
+            patches = [int(p) for p in re.findall(r"Features Released with v[\d.]+ Patch (\d+)", _page_text(bundle, page))]
+            if patches:
+                out["version"] = f"v{release} Patch {max(patches)}"
+    elif parser == "dra":
+        # "DRA v15.4.0.40 (patch 40) September 22, 2026: ..." / "DRA v15.4.0.10 (patch 10) - GA Released: Q3, 2026."
+        text = _page_text(bundle, landing_page)
+        builds = re.findall(
+            r"DRA v(\d+(?:\.\d+){3}) \(patch (\d+)\)\s*(?:-\s*GA\s*Released:\s*)?([A-Z][a-z]+ \d{1,2}, \d{4}|Q[1-4],? \d{4})?",
+            text,
+        )
+        if builds:
+            build, patch, date = max(builds, key=lambda b: int(b[1]))
+            out["version"] = f"v{build} (Patch {patch})"
+            out["date"] = date
+    elif parser == "agent":
+        # "Patch 10 Release Date: September 23, 2026"
+        page = _toc_page(bundle, "Features Released")
+        if page:
+            out["page"] = page
+            patches = re.findall(r"Patch (\d+)\s*Release Date:\s*([A-Z][a-z]+ \d{1,2}, \d{4})", _page_text(bundle, page))
+            if patches:
+                patch, date = max(patches, key=lambda p: int(p[0]))
+                out["version"] = f"v{release} Patch {patch}"
+                out["date"] = date
+    elif parser == "hub":
+        # "DSF Hub v4.19 Designated as New Long-Term Support (LTS) Version"
+        page = _toc_page(bundle, "General Announcements")
+        if page:
+            lts = re.search(r"DSF Hub (v[\d.]+) (?:is )?Designated as (?:the )?New Long-Term Support", _page_text(bundle, page), re.IGNORECASE)
+            if lts:
+                out["notes"] = f"LTS: {lts.group(1)}"
+    return out
+
 def fetch_dsf_components() -> list[dict[str, str]]:
     """
-    Fetches and parses the Data Security Fabric (DSF) component versions table
-    from the DSF Integration Guide page.
+    Finds the newest release-notes bundle for each Data Security Fabric (DSF)
+    component and reads its latest version, patch level and release date.
+    DSF components are versioned and released independently.
     """
-    url = "https://docs-cybersec-be.thalesgroup.com/api/bundle/v1-data-security-overview-and-integration-guide/page/78571.htm"
-    try:
-        data = get_json(url)
-        html = data.get("topic_html") or ""
-        
-        row_pattern = re.compile(
-            r'<tr[^>]*>\s*'
-            r'<td[^>]*>\s*<p class="tableheading">([^<]+)</p>\s*</td>\s*'
-            r'<td[^>]*>\s*<p class="(?:bodytext|tablebodytext)">([^<]+)</p>\s*</td>\s*'
-            r'</tr>',
-            re.DOTALL
-        )
-        matches = row_pattern.findall(html)
-        components = []
-        for prod, ver in matches:
+    components = []
+    for spec in DSF_SPECS:
+        title = spec["title"]
+        try:
+            found = find_latest_versioned_bundle(spec["family"], spec["floor"])
+            if not found:
+                raise LookupError(f"no v{spec['floor'][0]}.{spec['floor'][1]}-{spec['family']} bundle")
+            bundle, release, meta = found
+            info = _parse_dsf_release(spec["parser"], bundle, release, meta.get("landing_page") or "main-page.htm")
             components.append({
-                "title": prod.strip(),
-                "version": ver.strip(),
-                "homepage": "https://docs-cybersec.thalesgroup.com/bundle/v1-data-security-overview-and-integration-guide/page/78571.htm"
+                "title": title,
+                "version": info["version"],
+                "date": info["date"],
+                "notes": info["notes"],
+                "homepage": f"{PORTAL_HOST}/bundle/{bundle}/page/{info['page']}",
             })
-        return components
-    except Exception as e:
-        print(f"Error fetching DSF components: {e}", file=sys.stderr)
-        return []
+        except Exception as e:
+            print(f"Error fetching DSF component {title}: {e}", file=sys.stderr)
+            components.append({"title": title, "version": f"Error: {e}", "date": "", "notes": "", "homepage": DSF_OVERVIEW_URL})
+    return components
 
 def fetch_cm_release_support() -> dict:
     """
@@ -313,8 +414,7 @@ def fetch_cm_release_support() -> dict:
         print(f"Error fetching CipherTrust Manager release model: {e}", file=sys.stderr)
         return result
 
-    def text_of(fragment: str) -> str:
-        return html_lib.unescape(re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", fragment))).strip()
+    text_of = _html_text
 
     # e.g. <strong>2.23.x-LTS release</strong>. This is the most current and preferred LTS
     # version. It receives scheduled patches until Q2 2028 and support until Q2 2030.
@@ -394,10 +494,10 @@ def detect_changes(
             last_val = last_map[title]
             if has_date:
                 version_changed = curr_val["version"] != last_val["version"]
-                date_changed = curr_val["date"] != last_val["date"]
+                date_changed = curr_val.get("date", "") != last_val.get("date", "")
                 if version_changed or date_changed:
                     v_change = f"{last_val['version']} -> {curr_val['version']}" if version_changed else curr_val["version"]
-                    d_change = f"{last_val['date']} -> {curr_val['date']}" if date_changed else curr_val["date"]
+                    d_change = f"{last_val.get('date', '')} -> {curr_val['date']}" if date_changed else curr_val["date"]
                     changes.append(f"  [{category_name} Change] '{title}': Version [{v_change}], Date [{d_change}]")
             else:
                 if curr_val["version"] != last_val["version"]:
@@ -652,9 +752,10 @@ def render_html(data: dict, changes: list[str], has_last: bool) -> str:
         (
             "Data Security Fabric (DSF)",
             data.get("dsf_components", []),
-            [("title", "Name"), ("version", "Version"), ("homepage", "Docs")],
+            [("title", "Name"), ("version", "Version"), ("date", "Release Date"), ("notes", "Notes"), ("homepage", "Docs")],
             "No DSF components found.",
-            "",
+            'Each DSF component is versioned and released independently. Release and end-of-life dates: see '
+            f'<a href="{_esc(DSF_SUPPORTED_VERSIONS_URL)}" target="_blank" rel="noopener">DSF supported versions</a> (support login required).',
         ),
     ]
 
@@ -750,7 +851,7 @@ def main():
     luna_components.sort(key=lambda x: x.get("title", "").lower())
 
     # 4. Scraping Data Security Fabric (DSF) Component Versions
-    print("Fetching Data Security Fabric (DSF) components table...", file=sys.stderr)
+    print("Fetching Data Security Fabric (DSF) component release notes...", file=sys.stderr)
     dsf_components = fetch_dsf_components()
     # Sort alphabetically by component title
     dsf_components.sort(key=lambda x: x.get("title", "").lower())
@@ -795,7 +896,7 @@ def main():
                 changes.extend(detect_cm_support_changes(last_data["cm_release_support"], cm_support))
             changes.extend(detect_changes(last_data.get("cte_components", []), cte_components, "CTE Component", has_date=True))
             changes.extend(detect_changes(last_data.get("luna_hsm_components", []), luna_components, "Luna HSM Component", has_date=True))
-            changes.extend(detect_changes(last_data.get("dsf_components", []), dsf_components, "DSF Component"))
+            changes.extend(detect_changes(last_data.get("dsf_components", []), dsf_components, "DSF Component", has_date=True))
         except Exception as e:
             print(f"Error comparing current and last versions: {e}", file=sys.stderr)
 
@@ -855,15 +956,16 @@ def main():
 
         print("\n## Data Security Fabric (DSF)")
         if args.show_urls:
-            print("| Name | Version | URL |")
-            print("|---|---|---|")
+            print("| Name | Version | Release Date | Notes | URL |")
+            print("|---|---|---|---|---|")
             for d in dsf_components:
-                print(f"| {d['title']} | {d['version']} | [Documentation Home]({d['homepage']}) |")
+                print(f"| {d['title']} | {d['version']} | {d['date']} | {d['notes']} | [Release Notes]({d['homepage']}) |")
         else:
-            print("| Name | Version |")
-            print("|---|---|")
+            print("| Name | Version | Release Date | Notes |")
+            print("|---|---|---|---|")
             for d in dsf_components:
-                print(f"| {d['title']} | {d['version']} |")
+                print(f"| {d['title']} | {d['version']} | {d['date']} | {d['notes']} |")
+        print(f"\nRelease and end-of-life dates: [DSF supported versions]({DSF_SUPPORTED_VERSIONS_URL}) (support login required)")
             
     else:
         # Table output
@@ -910,11 +1012,12 @@ def main():
         print_table(
             "DATA SECURITY FABRIC (DSF)",
             dsf_components,
-            ["title", "version"],
-            ["Name", "Version"],
+            ["title", "version", "date", "notes"],
+            ["Name", "Version", "Release Date", "Notes"],
             args.show_urls,
             "No DSF components found."
         )
+        print(f"DSF supported versions (release/end-of-life dates, login required): {DSF_SUPPORTED_VERSIONS_URL}")
 
     # 8. Display Change Detection Results
     if os.path.exists(last_file):

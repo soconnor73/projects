@@ -29,3 +29,12 @@ Versions 2.10.x and older, 2.12.x, 2.13.x, and 2.14.x have reached end of suppor
 - Done: the CTE section of every output format now links to:
   - CTE Compatibility Matrix, filtered to RHEL 10: https://docs-cybersec.thalesgroup.com/cte-con/?OsMajor=RHEL%2010&OsMinor=all&Kernel=all&selectedOsMajor=RHEL%2010
   - CipherTrust Manager Compatible CTE Versions: https://docs-cybersec.thalesgroup.com/cte-con/?sideBarIndex=6&radioOption=0&firstOption=All&secondOption=All
+
+# Enhancement - add HSM related products
+
+- Crypto Command Center (CCC) [docs](https://www.thalesdocs.com/gphsm/ccc/latest/resources/release_notes/index.html) 
+- ProtectServer 3 HSM and ProtectToolkit 7 
+  - [ProtectServer 3 docs](https://www.thalesdocs.com/gphsm/ptk/protectserver3/docs/ps_ptk_docs/crn/firmware_releases/index.html)
+  - [ProtectTookit 7 docs](https://www.thalesdocs.com/gphsm/ptk/protectserver3/docs/ps_ptk_docs/crn/ptk_releases/index.html)
+- DPoD Client supported versions
+  - [CloudHSM Supported Universal Client versions](https://www.thalesdocs.com/dpod/services/luna_cloud_hsm/client/uc_supported_versions/index.html)
