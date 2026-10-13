@@ -15,7 +15,7 @@ ctx = ssl.create_default_context()
 ctx.check_hostname = False
 ctx.verify_mode = ssl.CERT_NONE
 
-__version__ = "1.0.6"
+__version__ = "1.0.7"
 
 API_HOST = "https://docs-cybersec-be.thalesgroup.com"
 PORTAL_HOST = "https://docs-cybersec.thalesgroup.com"
